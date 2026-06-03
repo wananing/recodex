@@ -1,0 +1,23 @@
+[project]
+name = "ai-dev-review"
+root = "."
+
+[sources.codex]
+enabled = true
+sessions_dir = "~/.codex/sessions"
+
+[privacy]
+redact_secrets = true
+redact_env_files = true
+redact_home_path = true
+
+[analysis]
+local_only = true
+max_session_tokens = 80000
+
+[outputs]
+agents_md = "./AGENTS.md"
+skills_dir = "./.agents/skills"
+checklists_dir = "./docs/ai-checklists"
+scripts_dir = "./scripts/ai"
+reports_dir = "./.ai-review/reports"

@@ -1,0 +1,30 @@
+[project]
+name = "ai-dev-review"
+version = "0.1.0"
+description = "Local CLI for reviewing AI-assisted development transcripts."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+ai-review = "ai_dev_review.cli:main"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.0",
+    "ty>=0.0.1a20",
+]
+
+[build-system]
+requires = ["uv_build>=0.8.0,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ty.environment]
+python-version = "3.10"

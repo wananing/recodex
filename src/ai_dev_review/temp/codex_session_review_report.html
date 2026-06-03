@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Codex 会话复盘报告 - auth-service-v3</title>
+    <!-- Tailwind CSS for modern responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js for lightweight state management and interactions -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <!-- Font Awesome for developer-centric icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter and JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    },
+                    boxShadow: {
+                        'premium': '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 8px -1px rgba(0, 0, 0, 0.03)',
+                        'premium-dark': '0 4px 25px -2px rgba(0, 0, 0, 0.3), 0 2px 10px -1px rgba(0, 0, 0, 0.2)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        pre,
+        code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Custom thin scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .dark ::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body x-data="{ 
+    darkMode: true, 
+    detailMode: 'detailed', 
+    copiedToast: false, 
+    toastMsg: '',
+    sidebarOpen: true,
+    activeSection: 'overview',
+    showAgentsModal: false,
+    showChecklistModal: false,
+    triggerToast(msg) {
+        this.toastMsg = msg;
+        this.copiedToast = true;
+        setTimeout(() => this.copiedToast = false, 3000);
+    },
+    copyToClipboard(text, successMsg) {
+        const tempInput = document.createElement('textarea');
+        tempInput.value = text;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        this.triggerToast(successMsg);
+    }
+}" :class="{ 'dark': darkMode }"
+    class="bg-slate-50 text-slate-900 dark:bg-zinc-950 dark:text-zinc-100 transition-colors duration-200 min-h-screen">
+
+    <!-- Custom Modern Alert/Toast Notification System -->
+    <div class="fixed bottom-6 right-6 z-50 transform transition-all duration-300" x-show="copiedToast"
+        x-transition:enter="ease-out duration-300"
+        x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+        x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200"
+        x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+        x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" style="display: none;">
+        <div
+            class="bg-indigo-600 dark:bg-indigo-500 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-3 border border-indigo-400/20">
+            <i class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+            <span class="font-medium text-sm" x-text="toastMsg">操作成功</span>
+        </div>
+    </div>
+
+    <!-- AGENTS.md Generated snippet Modal -->
+    <div class="fixed inset-0 z-50 overflow-y-auto" x-show="showAgentsModal" style="display: none;">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true" @click="showAgentsModal = false">
+                <div class="absolute inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm"></div>
+            </div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div
+                class="inline-block align-bottom bg-white dark:bg-zinc-900 rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-xl sm:w-full border border-slate-200 dark:border-zinc-800">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold flex items-center gap-2">
+                            <i class="fa-solid fa-file-code text-indigo-500"></i> AGENTS.md 补丁配置
+                        </h3>
+                        <button @click="showAgentsModal = false"
+                            class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-zinc-400 mb-3">建议在项目根目录下创建或更新 <code
+                            class="bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-indigo-600 dark:text-indigo-400">AGENTS.md</code>，让
+                        Codex 在后续会话初始化时自动读取，彻底避免上下文缺失。</p>
+                    <pre
+                        class="bg-slate-950 text-emerald-400 p-4 rounded-xl text-xs overflow-x-auto text-left border border-slate-800 leading-relaxed font-mono"># Project Rules & Context Setup
+
+## Test Environment
+- Auth verification test command: `pnpm test:auth`
+- Run TypeScript health check: `pnpm typecheck`
+
+## Directory Mapping
+- Core App Entry: `apps/web`
+- Forbidden modifications: `packages/shared/api-shape.ts` (Never change shared API shapes without explicit sync approval)
+
+## Session Completion Standards
+- After making code alterations, always invoke `pnpm test:auth` and `pnpm typecheck`. Report findings in final message summary.</pre>
+                    <div class="mt-5 flex justify-end space-x-3">
+                        <button @click="showAgentsModal = false"
+                            class="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg">取消</button>
+                        <button
+                            @click="copyToClipboard(`# Project Rules & Context Setup\n\n## Test Environment\n- Auth verification test command: \`pnpm test:auth\`\n- Run TypeScript health check: \`pnpm typecheck\`\n\n## Directory Mapping\n- Core App Entry: \`apps/web\`\n- Forbidden modifications: \`packages/shared/api-shape.ts\`\n\n## Session Completion Standards\n- After making code alterations, always invoke \`pnpm test:auth\` and \`pnpm typecheck\`. Report outputs explicitly in your final summary response.`, 'AGENTS.md 配置已复制！'); showAgentsModal = false;"
+                            class="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-sm">复制配置</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Wrapper -->
+    <div class="flex h-screen overflow-hidden">
+
+        <!-- Left Sidebar Navigation for Desktop -->
+        <aside :class="sidebarOpen ? 'w-64' : 'w-16'"
+            class="hidden md:flex flex-col bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 transition-all duration-300 shrink-0">
+            <!-- Brand Logotype -->
+            <div
+                class="h-16 flex items-center px-4 justify-between border-b border-slate-200 dark:border-zinc-800 overflow-hidden">
+                <div class="flex items-center space-x-3" x-show="sidebarOpen">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-md">
+                        <i class="fa-solid fa-code-merge text-sm"></i>
+                    </div>
+                    <div>
+                        <span class="font-bold text-sm tracking-tight text-slate-800 dark:text-zinc-200">Codex
+                            Review</span>
+                        <span class="block text-[10px] text-indigo-500 font-bold tracking-widest uppercase">FLOW
+                            AUDIT</span>
+                    </div>
+                </div>
+                <button @click="sidebarOpen = !sidebarOpen"
+                    class="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 dark:text-zinc-400 mx-auto">
+                    <i class="fa-solid" :class="sidebarOpen ? 'fa-angles-left' : 'fa-bars'"></i>
+                </button>
+            </div>
+
+            <!-- Navigation Links linked with ScrollSpy / Anchor Links -->
+            <div class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+                <div class="text-[10px] font-bold tracking-wider text-slate-400 dark:text-zinc-500 px-3 uppercase mb-2"
+                    x-show="sidebarOpen">报告核心导航</div>
+                <nav class="space-y-1">
+                    <a href="#overview" @click="activeSection = 'overview'"
+                        :class="activeSection === 'overview' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50'"
+                        class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors">
+                        <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+                        <span class="ml-3" x-show="sidebarOpen">1. 顶部概览</span>
+                    </a>
+                    <a href="#timeline" @click="activeSection = 'timeline'"
+                        :class="activeSection === 'timeline' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50'"
+                        class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors">
+                        <i class="fa-solid fa-route w-5 text-center"></i>
+                        <span class="ml-3" x-show="sidebarOpen">2. 流程路径</span>
+                    </a>
+                    <a href="#issues" @click="activeSection = 'issues'"
+                        :class="activeSection === 'issues' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50'"
+                        class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors">
+                        <i class="fa-solid fa-triangle-exclamation w-5 text-center"></i>
+                        <span class="ml-3" x-show="sidebarOpen">3. 主要问题</span>
+                    </a>
+                    <a href="#context" @click="activeSection = 'context'"
+                        :class="activeSection === 'context' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50'"
+                        class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors">
+                        <i class="fa-solid fa-folder-tree w-5 text-center"></i>
+                        <span class="ml-3" x-show="sidebarOpen">4. 上下文前置</span>
+                    </a>
+                    <a href="#intervention" @click="activeSection = 'intervention'"
+                        :class="activeSection === 'intervention' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50'"
+                        class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors">
+                        <i class="fa-solid fa-handshake-angle w-5 text-center"></i>
+                        <span class="ml-3" x-show="sidebarOpen">5. 过程干预</span>
+                    </a>
+                    <a href="#acceptance" @click="activeSection = 'acceptance'"
+                        :class="activeSection === 'acceptance' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50'"
+                        class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors">
+                        <i class="fa-solid fa-clipboard-check w-5 text-center"></i>
+                        <span class="ml-3" x-show="sidebarOpen">6. 验证与验收</span>
+                    </a>
+                    <a href="#suggestions" @click="activeSection = 'suggestions'"
+                        :class="activeSection === 'suggestions' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50'"
+                        class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors">
+                        <i class="fa-solid fa-wand-magic-sparkles w-5 text-center"></i>
+                        <span class="ml-3" x-show="sidebarOpen">7. 改进建议</span>
+                    </a>
+                    <a href="#evidence" @click="activeSection = 'evidence'"
+                        :class="activeSection === 'evidence' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400' : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50'"
+                        class="flex items-center px-3 py-2 rounded-lg text-sm transition-colors">
+                        <i class="fa-solid fa-box-archive w-5 text-center"></i>
+                        <span class="ml-3" x-show="sidebarOpen">8. 证据附录</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="p-4 border-t border-slate-200 dark:border-zinc-800 text-xs overflow-hidden"
+                x-show="sidebarOpen">
+                <div class="flex items-center justify-between text-slate-400 dark:text-zinc-500">
+                    <span>版本: v1.1.0</span>
+                    <span class="text-indigo-500 font-bold flex items-center gap-1"><span
+                            class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span> 本地分析</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Panel -->
+        <main class="flex-1 flex flex-col overflow-hidden min-w-0">
+            <!-- Top App Bar -->
+            <header
+                class="h-16 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 backdrop-blur flex items-center justify-between px-4 lg:px-6 z-10">
+                <div class="flex items-center gap-4">
+                    <!-- Mobile Logo Placeholder -->
+                    <div class="md:hidden flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
+                            <i class="fa-solid fa-code-merge text-xs"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <h1 class="text-base font-bold text-slate-800 dark:text-zinc-100 flex items-center gap-2">
+                            <span>Codex Session Review Report</span>
+                            <span
+                                class="px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400 font-mono">FLOW-V3</span>
+                        </h1>
+                    </div>
+                </div>
+
+                <!-- Global Actions Bar -->
+                <div class="flex items-center space-x-2 md:space-x-3">
+                    <!-- Compact / Detailed View Toggle -->
+                    <div class="bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-lg flex items-center">
+                        <button @click="detailMode = 'compact'"
+                            :class="detailMode === 'compact' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-zinc-400'"
+                            class="px-2.5 py-1 text-xs font-semibold rounded-md transition">
+                            简洁模式
+                        </button>
+                        <button @click="detailMode = 'detailed'"
+                            :class="detailMode === 'detailed' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-zinc-400'"
+                            class="px-2.5 py-1 text-xs font-semibold rounded-md transition">
+                            详细展开
+                        </button>
+                    </div>
+
+                    <!-- Theme Switcher -->
+                    <button @click="darkMode = !darkMode"
+                        class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 dark:text-zinc-400 transition"
+                        title="切换深/浅色模式">
+                        <i class="fa-solid" :class="darkMode ? 'fa-sun' : 'fa-moon'"></i>
+                    </button>
+
+                    <!-- Export Trigger -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open"
+                            class="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-sm flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                            <span>导出</span>
+                        </button>
+                        <div x-show="open" @click.away="open = false" style="display: none;"
+                            class="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-slate-200 dark:border-zinc-800 py-2 z-30">
+                            <button @click="triggerToast('HTML 导出文件生成成功，已开始自动下载...'); open = false"
+                                class="w-full text-left px-4 py-2 text-xs hover:bg-slate-100 dark:hover:bg-zinc-800 flex items-center gap-2 text-slate-700 dark:text-zinc-300">
+                                <i class="fa-solid fa-file-code text-indigo-500"></i> 导出完整静态报告
+                            </button>
+                            <button @click="window.print(); open = false"
+                                class="w-full text-left px-4 py-2 text-xs hover:bg-slate-100 dark:hover:bg-zinc-800 flex items-center gap-2 text-slate-700 dark:text-zinc-300">
+                                <i class="fa-solid fa-print text-emerald-500"></i> 打印报告 (或存为 PDF)
+                            </button>
+                            <button
+                                @click="copyToClipboard('【Codex 复盘总结】本次会话完成指标：完成可信度中等偏低，上下文前置明显不足。核心问题在于验证命令与主要代码目录在中段才给予，收尾未执行回归测试及编译。后续建议将最常用的 test 指令沉淀至 AGENTS.md。', '报告摘要已成功复制到剪贴板！'); open = false"
+                                class="w-full text-left px-4 py-2 text-xs hover:bg-slate-100 dark:hover:bg-zinc-800 flex items-center gap-2 text-slate-700 dark:text-zinc-300">
+                                <i class="fa-solid fa-copy text-amber-500"></i> 复制复盘文字摘要
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="flex-1 overflow-y-auto p-4 lg:p-6 space-y-8">
+
+                <!-- 1. 顶部概览区 -->
+                <section id="overview" class="scroll-mt-20">
+                    <div
+                        class="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 shadow-premium dark:shadow-premium-dark relative overflow-hidden">
+                        <!-- BG Glow Effects -->
+                        <div
+                            class="absolute -right-12 -top-12 w-60 h-60 bg-indigo-500/5 dark:bg-indigo-500/10 rounded-full blur-3xl pointer-events-none">
+                        </div>
+                        <div
+                            class="absolute -left-12 -bottom-12 w-48 h-48 bg-amber-500/5 dark:bg-amber-500/10 rounded-full blur-2xl pointer-events-none">
+                        </div>
+
+                        <!-- Meta Row -->
+                        <div class="flex flex-wrap items-center gap-3 mb-4 text-xs text-slate-500 dark:text-zinc-400">
+                            <span class="font-bold tracking-wider text-slate-400 uppercase">SESSION METRICS</span>
+                            <span class="w-1 h-1 rounded-full bg-slate-300 dark:bg-zinc-700"></span>
+                            <span class="flex items-center gap-1">
+                                <i class="fa-solid fa-folder text-amber-500"></i> 项目: <strong
+                                    class="text-slate-700 dark:text-zinc-300 font-mono">auth-service-v3</strong>
+                            </span>
+                            <span class="w-1 h-1 rounded-full bg-slate-300 dark:bg-zinc-700"></span>
+                            <span>会话时间: 2026-05-29 05:45 (耗时 12分钟)</span>
+                            <span class="w-1 h-1 rounded-full bg-slate-300 dark:bg-zinc-700"></span>
+                            <span
+                                class="bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded text-[10px] font-mono flex items-center gap-1 text-slate-600 dark:text-zinc-400">
+                                <i class="fa-solid fa-shield-halved text-emerald-500"></i> 已脱敏 / 本地 LLM 分析
+                            </span>
+                        </div>
+
+                        <!-- Hero Info -->
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                            <div class="lg:col-span-7">
+                                <h2
+                                    class="text-xl md:text-2xl font-extrabold tracking-tight text-slate-800 dark:text-white leading-tight">
+                                    本次会话已推进任务，但流程闭环可信度仍需提升。
+                                </h2>
+                                <p class="text-sm text-slate-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                                    主要原因在于部分核心上下文（例如专属测试命令、正确的目标代码路径）输入明显偏晚，导致工具在前期产生了数轮不必要的探索；中途出现了轻微的工作边界漂移；此外，会话收尾阶段缺少测试及静态验证。
+                                </p>
+
+                                <div class="mt-4 flex flex-wrap gap-2">
+                                    <span
+                                        class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-hourglass-half"></i> 关键上下文滞后约 30%
+                                    </span>
+                                    <span
+                                        class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-compass"></i> 存在不必要目录探索
+                                    </span>
+                                    <span
+                                        class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-cube"></i> 下次建议沉淀至 AGENTS.md
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Indicator Dashboard Cards -->
+                            <div class="lg:col-span-5 grid grid-cols-2 gap-3">
+                                <div
+                                    class="bg-slate-50 dark:bg-zinc-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-zinc-800/80 flex flex-col justify-between">
+                                    <span class="text-xs text-slate-500 dark:text-zinc-400">完成可信度</span>
+                                    <div class="mt-2">
+                                        <span class="text-base font-bold text-amber-600 dark:text-amber-400">中等偏低</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 dark:bg-zinc-800 h-1.5 rounded-full mt-2">
+                                        <div class="bg-amber-500 h-1.5 rounded-full" style="width: 45%"></div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="bg-slate-50 dark:bg-zinc-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-zinc-800/80 flex flex-col justify-between">
+                                    <span class="text-xs text-slate-500 dark:text-zinc-400">上下文前置</span>
+                                    <div class="mt-2">
+                                        <span class="text-base font-bold text-red-600 dark:text-red-400">明显不足</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 dark:bg-zinc-800 h-1.5 rounded-full mt-2">
+                                        <div class="bg-red-500 h-1.5 rounded-full" style="width: 30%"></div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="bg-slate-50 dark:bg-zinc-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-zinc-800/80 flex flex-col justify-between">
+                                    <span class="text-xs text-slate-500 dark:text-zinc-400">过程干预</span>
+                                    <div class="mt-2">
+                                        <span
+                                            class="text-base font-bold text-indigo-600 dark:text-indigo-400">中段合理拦截</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 dark:bg-zinc-800 h-1.5 rounded-full mt-2">
+                                        <div class="bg-indigo-500 h-1.5 rounded-full" style="width: 70%"></div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="bg-slate-50 dark:bg-zinc-900/50 p-3.5 rounded-xl border border-slate-100 dark:border-zinc-800/80 flex flex-col justify-between">
+                                    <span class="text-xs text-slate-500 dark:text-zinc-400">验证闭环</span>
+                                    <div class="mt-2">
+                                        <span class="text-base font-bold text-slate-400 dark:text-zinc-500">基本缺失</span>
+                                    </div>
+                                    <div class="w-full bg-slate-200 dark:bg-zinc-800 h-1.5 rounded-full mt-2">
+                                        <div class="bg-slate-400 dark:bg-zinc-700 h-1.5 rounded-full"
+                                            style="width: 10%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. 流程路径区 -->
+                <section id="timeline" class="scroll-mt-20">
+                    <div
+                        class="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 shadow-premium dark:shadow-premium-dark">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-base font-bold text-slate-800 dark:text-zinc-100 flex items-center gap-2">
+                                <i class="fa-solid fa-route text-indigo-500"></i> 会话推进过程及状态轨迹
+                            </h3>
+                            <span class="text-xs text-slate-400 dark:text-zinc-500">系统时序演变追踪</span>
+                        </div>
+
+                        <!-- Responsive Grid Timeline Layout -->
+                        <div class="grid grid-cols-1 md:grid-cols-6 gap-4 relative">
+                            <!-- Timeline desktop linking bar -->
+                            <div
+                                class="hidden md:block absolute top-[28px] left-[8%] right-[8%] h-0.5 bg-slate-100 dark:bg-zinc-800/80 -z-10">
+                            </div>
+
+                            <!-- Stage 1 -->
+                            <div
+                                class="bg-slate-50 dark:bg-zinc-950/40 p-4 rounded-xl border border-slate-100 dark:border-zinc-800/80">
+                                <div class="flex items-center justify-between md:flex-col md:items-start gap-2 mb-2">
+                                    <span
+                                        class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-400 font-bold text-xs flex items-center justify-center">01</span>
+                                    <span
+                                        class="px-2 py-0.5 text-[10px] font-semibold rounded bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400">信息不足</span>
+                                </div>
+                                <h4 class="text-xs font-bold text-slate-800 dark:text-zinc-200">提出任务</h4>
+                                <p class="text-[11px] text-slate-400 dark:text-zinc-400 mt-1">提出登录令牌故障，但未规范验收命令及最终完成标准。
+                                </p>
+                            </div>
+
+                            <!-- Stage 2 -->
+                            <div
+                                class="bg-slate-50 dark:bg-zinc-950/40 p-4 rounded-xl border border-slate-100 dark:border-zinc-800/80">
+                                <div class="flex items-center justify-between md:flex-col md:items-start gap-2 mb-2">
+                                    <span
+                                        class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-400 font-bold text-xs flex items-center justify-center">02</span>
+                                    <span
+                                        class="px-2 py-0.5 text-[10px] font-semibold rounded bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400">无效探索</span>
+                                </div>
+                                <h4 class="text-xs font-bold text-slate-800 dark:text-zinc-200">探索定位</h4>
+                                <p class="text-[11px] text-slate-400 dark:text-zinc-400 mt-1">因目录不清，Codex
+                                    前期在无关微服务子文件夹深挖，耗时较久。</p>
+                            </div>
+
+                            <!-- Stage 3 -->
+                            <div
+                                class="bg-slate-50 dark:bg-zinc-950/40 p-4 rounded-xl border border-slate-100 dark:border-zinc-800/80">
+                                <div class="flex items-center justify-between md:flex-col md:items-start gap-2 mb-2">
+                                    <span
+                                        class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-400 font-bold text-xs flex items-center justify-center">03</span>
+                                    <span
+                                        class="px-2 py-0.5 text-[10px] font-semibold rounded bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400">中途滞后</span>
+                                </div>
+                                <h4 class="text-xs font-bold text-slate-800 dark:text-zinc-200">补充上下文</h4>
+                                <p class="text-[11px] text-slate-400 dark:text-zinc-400 mt-1">
+                                    会话推进至中段时，手动输送具体测试命令并校准主要路径。</p>
+                            </div>
+
+                            <!-- Stage 4 -->
+                            <div
+                                class="bg-slate-50 dark:bg-zinc-950/40 p-4 rounded-xl border border-slate-100 dark:border-zinc-800/80">
+                                <div class="flex items-center justify-between md:flex-col md:items-start gap-2 mb-2">
+                                    <span
+                                        class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-400 font-bold text-xs flex items-center justify-center">04</span>
+                                    <span
+                                        class="px-2 py-0.5 text-[10px] font-semibold rounded bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">准确修改</span>
+                                </div>
+                                <h4 class="text-xs font-bold text-slate-800 dark:text-zinc-200">实现修改</h4>
+                                <p class="text-[11px] text-slate-400 dark:text-zinc-400 mt-1">在正确目录下的 `auth.ts`
+                                    中成功修改了过期判定和 refresh 字段。</p>
+                            </div>
+
+                            <!-- Stage 5 -->
+                            <div
+                                class="bg-slate-50 dark:bg-zinc-950/40 p-4 rounded-xl border border-slate-100 dark:border-zinc-800/80">
+                                <div class="flex items-center justify-between md:flex-col md:items-start gap-2 mb-2">
+                                    <span
+                                        class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-400 font-bold text-xs flex items-center justify-center">05</span>
+                                    <span
+                                        class="px-2 py-0.5 text-[10px] font-semibold rounded bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400">主动干预</span>
+                                </div>
+                                <h4 class="text-xs font-bold text-slate-800 dark:text-zinc-200">过程干预</h4>
+                                <p class="text-[11px] text-slate-400 dark:text-zinc-400 mt-1">发现重构讨论有蔓延漂移的趋势，及时予以暂停纠回。
+                                </p>
+                            </div>
+
+                            <!-- Stage 6 -->
+                            <div
+                                class="bg-slate-50 dark:bg-zinc-950/40 p-4 rounded-xl border border-slate-100 dark:border-zinc-800/80">
+                                <div class="flex items-center justify-between md:flex-col md:items-start gap-2 mb-2">
+                                    <span
+                                        class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-400 font-bold text-xs flex items-center justify-center">06</span>
+                                    <span
+                                        class="px-2 py-0.5 text-[10px] font-semibold rounded bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400">缺失验证</span>
+                                </div>
+                                <h4 class="text-xs font-bold text-slate-800 dark:text-zinc-200">验收收尾</h4>
+                                <p class="text-[11px] text-slate-400 dark:text-zinc-400 mt-1">
+                                    会话收尾过于匆忙，代码写完即停，完全未提供回归运行记录。</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. 主要问题区 -->
+                <section id="issues" class="scroll-mt-20">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-base font-bold text-slate-800 dark:text-zinc-100 flex items-center gap-2">
+                                <i class="fa-solid fa-triangle-exclamation text-indigo-500"></i> 会话主要优化项
+                            </h3>
+                            <span class="text-xs font-semibold text-slate-400">系统提炼 3 个关键痛点</span>
+                        </div>
+
+                        <!-- Cards Matrix -->
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <!-- Issue 1 -->
+                            <div
+                                class="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-premium dark:shadow-premium-dark flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <span
+                                            class="px-2 py-0.5 text-[10px] font-bold rounded bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400 uppercase">主要痛点
+                                            1</span>
+                                        <i
+                                            class="fa-solid fa-arrows-down-to-clock text-slate-300 dark:text-zinc-700"></i>
+                                    </div>
+                                    <h4 class="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-4">核心上下文补充滞后</h4>
+
+                                    <div class="space-y-3 text-xs mb-6">
+                                        <div class="pl-2 border-l-2 border-indigo-500">
+                                            <span
+                                                class="text-slate-400 dark:text-zinc-500 font-semibold block">现象：</span>
+                                            <p class="text-slate-600 dark:text-zinc-300 mt-0.5">测试命令和首选子项目路径直到第 6
+                                                轮后才由用户主动提示提供。</p>
+                                        </div>
+                                        <div class="pl-2 border-l-2 border-amber-500">
+                                            <span
+                                                class="text-slate-400 dark:text-zinc-500 font-semibold block">影响：</span>
+                                            <p class="text-slate-600 dark:text-zinc-300 mt-0.5">造成前期 Codex 耗费大量 token
+                                                去分析不相干的旧文件，且极易引入偏差。</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div
+                                    class="bg-indigo-50/50 dark:bg-zinc-950/40 p-3 rounded-xl border border-indigo-100/20">
+                                    <span
+                                        class="text-[10px] font-bold tracking-wider text-indigo-500 uppercase block mb-1">下次改进动作：</span>
+                                    <p class="text-xs text-slate-600 dark:text-zinc-300">
+                                        将这些高频、不易变的测试参数与文件映射提前沉淀至全局，从首个提示词前置。</p>
+                                </div>
+                            </div>
+
+                            <!-- Issue 2 -->
+                            <div
+                                class="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-premium dark:shadow-premium-dark flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <span
+                                            class="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400 uppercase">主要痛点
+                                            2</span>
+                                        <i
+                                            class="fa-solid fa-arrows-split-up-and-left text-slate-300 dark:text-zinc-700"></i>
+                                    </div>
+                                    <h4 class="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-4">任务边界界定较为模糊</h4>
+
+                                    <div class="space-y-3 text-xs mb-6">
+                                        <div class="pl-2 border-l-2 border-indigo-500">
+                                            <span
+                                                class="text-slate-400 dark:text-zinc-500 font-semibold block">现象：</span>
+                                            <p class="text-slate-600 dark:text-zinc-300 mt-0.5">解决 token
+                                                故障的过程中伴随着部分关联工具接口重构方案的反复拉扯。</p>
+                                        </div>
+                                        <div class="pl-2 border-l-2 border-amber-500">
+                                            <span
+                                                class="text-slate-400 dark:text-zinc-500 font-semibold block">影响：</span>
+                                            <p class="text-slate-600 dark:text-zinc-300 mt-0.5">Codex
+                                                同时并发两个以上不完全相干的修改目标，极大稀释了专注度。</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div
+                                    class="bg-indigo-50/50 dark:bg-zinc-950/40 p-3 rounded-xl border border-indigo-100/20">
+                                    <span
+                                        class="text-[10px] font-bold tracking-wider text-indigo-500 uppercase block mb-1">下次改进动作：</span>
+                                    <p class="text-xs text-slate-600 dark:text-zinc-300">
+                                        严守“定位、修复、大改”三步拆解机制，大型重构动作应在另一会话开展。</p>
+                                </div>
+                            </div>
+
+                            <!-- Issue 3 -->
+                            <div
+                                class="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-premium dark:shadow-premium-dark flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <span
+                                            class="px-2 py-0.5 text-[10px] font-bold rounded bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400 uppercase">主要痛点
+                                            3</span>
+                                        <i class="fa-solid fa-clipboard-question text-slate-300 dark:text-zinc-700"></i>
+                                    </div>
+                                    <h4 class="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-4">代码修改缺体验证闭环</h4>
+
+                                    <div class="space-y-3 text-xs mb-6">
+                                        <div class="pl-2 border-l-2 border-indigo-500">
+                                            <span
+                                                class="text-slate-400 dark:text-zinc-500 font-semibold block">现象：</span>
+                                            <p class="text-slate-600 dark:text-zinc-300 mt-0.5">
+                                                当逻辑修改完毕，会话直接关闭，期间无任何终端自动化命令运行断言。</p>
+                                        </div>
+                                        <div class="pl-2 border-l-2 border-amber-500">
+                                            <span
+                                                class="text-slate-400 dark:text-zinc-500 font-semibold block">影响：</span>
+                                            <p class="text-slate-600 dark:text-zinc-300 mt-0.5">极高概率在 CI/CD
+                                                阶段因遗漏类型不匹配导致构建失败，产生返工成本。</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div
+                                    class="bg-indigo-50/50 dark:bg-zinc-950/40 p-3 rounded-xl border border-indigo-100/20">
+                                    <span
+                                        class="text-[10px] font-bold tracking-wider text-indigo-500 uppercase block mb-1">下次改进动作：</span>
+                                    <p class="text-xs text-slate-600 dark:text-zinc-300">建立在离开会话前必执行测试及 TS 检查并反馈完整输出的规则。
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. 上下文前置分析区 -->
+                <section id="context" class="scroll-mt-20">
+                    <div
+                        class="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 shadow-premium dark:shadow-premium-dark">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
+                            <div>
+                                <h3
+                                    class="text-base font-bold text-slate-800 dark:text-zinc-100 flex items-center gap-2">
+                                    <i class="fa-solid fa-folder-tree text-indigo-500"></i> 下次应提前准备的信息
+                                </h3>
+                                <p class="text-xs text-slate-400 dark:text-zinc-500 mt-1">
+                                    如果这些核心上下文在会话第 1 轮就作为前置加载，本会话损耗将缩减约 50%
+                                </p>
+                            </div>
+                            <!-- AGENTS Trigger -->
+                            <button @click="showAgentsModal = true"
+                                class="px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded-lg border border-emerald-500/20 flex items-center gap-1.5 transition shrink-0">
+                                <i class="fa-solid fa-file-circle-plus"></i> 一键复制 AGENTS.md 补丁
+                            </button>
+                        </div>
+
+                        <!-- Data table -->
+                        <div class="overflow-x-auto border border-slate-100 dark:border-zinc-800/80 rounded-xl">
+                            <table class="w-full text-left text-xs border-collapse">
+                                <thead
+                                    class="bg-slate-50 dark:bg-zinc-950 text-slate-500 dark:text-zinc-400 font-semibold border-b border-slate-100 dark:border-zinc-800">
+                                    <tr>
+                                        <th class="p-3.5">信息项 / 命令</th>
+                                        <th class="p-3.5">本次出现时序</th>
+                                        <th class="p-3.5">为什么极其重要</th>
+                                        <th class="p-3.5">最佳前置载入位置</th>
+                                    </tr>
+                                </thead>
+                                <tbody
+                                    class="divide-y divide-slate-100 dark:divide-zinc-800 text-slate-600 dark:text-zinc-300">
+                                    <tr class="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition">
+                                        <td class="p-3.5 font-bold font-mono text-indigo-600 dark:text-indigo-400">pnpm
+                                            test:auth</td>
+                                        <td class="p-3.5"><span
+                                                class="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-400 text-[10px]">第
+                                                6 轮 (中段补充)</span></td>
+                                        <td class="p-3.5">提供专有的逻辑单元回归验证保障，使修改实时可测。</td>
+                                        <td class="p-3.5"><span
+                                                class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">AGENTS.md</span>
+                                            / 项目常驻说明</td>
+                                    </tr>
+                                    <tr class="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition">
+                                        <td class="p-3.5 font-bold font-mono text-indigo-600 dark:text-indigo-400">
+                                            apps/web</td>
+                                        <td class="p-3.5"><span
+                                                class="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-400 text-[10px]">第
+                                                4 轮 (定位偏离后)</span></td>
+                                        <td class="p-3.5">限定最核心、最相关的运行分支，彻底斩断对无关子项目的深度检索。</td>
+                                        <td class="p-3.5"><span
+                                                class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">AGENTS.md</span>
+                                            / 目录清单映射</td>
+                                    </tr>
+                                    <tr class="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition">
+                                        <td class="p-3.5 font-bold font-mono text-indigo-600 dark:text-indigo-400">
+                                            packages/shared/api-shape.ts</td>
+                                        <td class="p-3.5"><span
+                                                class="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-400 text-[10px]">实现期
+                                                (禁止修改约束)</span></td>
+                                        <td class="p-3.5">属于敏感全局基础组件。应当提前作为硬性禁止改动规则前置，避免引发构建崩溃。</td>
+                                        <td class="p-3.5"><span class="font-mono text-slate-400 dark:text-zinc-500">会话
+                                                1</span> / 初始禁止边界说明</td>
+                                    </tr>
+                                    <tr class="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition">
+                                        <td class="p-3.5 font-bold font-mono text-indigo-600 dark:text-indigo-400">pnpm
+                                            typecheck</td>
+                                        <td class="p-3.5"><span
+                                                class="px-2 py-0.5 rounded bg-red-100 dark:bg-red-950/60 text-red-800 dark:text-red-400 text-[10px]">缺失
+                                                (全会话未出现)</span></td>
+                                        <td class="p-3.5">确保重构后，相关依赖的泛型声明、类型约束全部没有断裂。</td>
+                                        <td class="p-3.5"><span
+                                                class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">AGENTS.md</span>
+                                            / 强制完成标定</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. 过程干预分析区 -->
+                <section id="intervention" class="scroll-mt-20">
+                    <div
+                        class="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 shadow-premium dark:shadow-premium-dark">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-base font-bold text-slate-800 dark:text-zinc-100 flex items-center gap-2">
+                                <i class="fa-solid fa-handshake-angle text-indigo-500"></i> 会话推进干预分析
+                            </h3>
+                            <span class="text-xs font-semibold text-emerald-500 flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 1 次有效人工拦截
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Observation -->
+                            <div
+                                class="bg-slate-50 dark:bg-zinc-950/40 p-5 rounded-xl border border-slate-100 dark:border-zinc-800/80">
+                                <h4
+                                    class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> 本次交互观察
+                                </h4>
+                                <p class="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
+                                    在本会话第 3 轮和第 4 轮期间，Codex 对 <code
+                                        class="bg-slate-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-[10px] text-pink-600 dark:text-pink-400 font-mono">apps/portal</code>
+                                    进行了错误的静态依赖追踪，并尝试对其底层结构进行修改。
+                                </p>
+                                <p class="text-xs text-slate-600 dark:text-zinc-300 mt-2 leading-relaxed">
+                                    随后，用户非常及时地发出<strong>“不，这个是无关文件夹，核心在 apps/web
+                                        下”</strong>的指令，成功掐断了该分支的持续污染。本次过程干预有效避免了 Codex 引发复杂的次生 Bug。
+                                </p>
+                            </div>
+
+                            <!-- Next time tips -->
+                            <div
+                                class="bg-indigo-50/20 dark:bg-indigo-950/10 p-5 rounded-xl border border-indigo-100/30 dark:border-indigo-900/20">
+                                <h4
+                                    class="text-xs font-bold uppercase tracking-wider text-indigo-500 dark:text-indigo-400 mb-3 flex items-center gap-2">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> 下次会话如何完美干预
+                                </h4>
+                                <ul class="space-y-3.5 text-xs text-slate-600 dark:text-zinc-300">
+                                    <li class="flex items-start gap-2">
+                                        <i class="fa-solid fa-circle-check text-emerald-500 mt-0.5 shrink-0"></i>
+                                        <div>
+                                            <strong>建立中止断言：</strong> 若发现 Codex 连续两轮给出无意义代码修改或读取无关日志，立刻强行发送
+                                            <code>/stop</code> 或者是“先列出你目前的假设路径，我先确认”机制。
+                                        </div>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <i class="fa-solid fa-circle-check text-emerald-500 mt-0.5 shrink-0"></i>
+                                        <div>
+                                            <strong>目标硬性隔离：</strong>
+                                            一旦会话逻辑开始泛化到不属于核心故障的额外清理，可直接表示“重构部分在下一个会话，本轮只专注逻辑修复”。
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 6. 验收与验证区 -->
+                <section id="acceptance" class="scroll-mt-20">
+                    <div
+                        class="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 shadow-premium dark:shadow-premium-dark">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
+                            <div>
+                                <h3
+                                    class="text-base font-bold text-slate-800 dark:text-zinc-100 flex items-center gap-2">
+                                    <i class="fa-solid fa-clipboard-check text-indigo-500"></i> 会话完结闭环性检验
+                                </h3>
+                                <p class="text-xs text-slate-400 dark:text-zinc-500 mt-1">
+                                    我们不以代码“写没写完”作为会话结束标准，而是依靠自动化编译及回归日志来进行验收
+                                </p>
+                            </div>
+                            <!-- Completion gauge -->
+                            <span
+                                class="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 self-start md:self-auto font-mono">
+                                自动化验证度: 25%
+                            </span>
+                        </div>
+
+                        <!-- Verification Checklist Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <!-- Verification Item 1 -->
+                            <div
+                                class="p-4 rounded-xl border border-amber-200 bg-amber-50/20 dark:border-amber-900/30 dark:bg-amber-950/10 flex items-start gap-3">
+                                <div
+                                    class="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center text-sm shrink-0">
+                                    <i class="fa-solid fa-vial"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <h4 class="text-xs font-bold text-slate-800 dark:text-zinc-200">运行单元测试</h4>
+                                        <span
+                                            class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">未发现</span>
+                                    </div>
+                                    <p class="text-[10px] text-slate-500 dark:text-zinc-400 mt-1">未检测到任何测试指令的本地运行痕迹。</p>
+                                </div>
+                            </div>
+
+                            <!-- Verification Item 2 -->
+                            <div
+                                class="p-4 rounded-xl border border-amber-200 bg-amber-50/20 dark:border-amber-900/30 dark:bg-amber-950/10 flex items-start gap-3">
+                                <div
+                                    class="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center text-sm shrink-0">
+                                    <i class="fa-solid fa-arrows-spin"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <h4 class="text-xs font-bold text-slate-800 dark:text-zinc-200">本地预编译构建</h4>
+                                        <span
+                                            class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">未发现</span>
+                                    </div>
+                                    <p class="text-[10px] text-slate-500 dark:text-zinc-400 mt-1">
+                                        改动后缺少整体打包构建反馈，难以判断无污染性。</p>
+                                </div>
+                            </div>
+
+                            <!-- Verification Item 3 -->
+                            <div
+                                class="p-4 rounded-xl border border-slate-200 bg-slate-50 dark:border-zinc-800 dark:bg-zinc-900/50 flex items-start gap-3">
+                                <div
+                                    class="w-8 h-8 rounded-lg bg-slate-400 text-white flex items-center justify-center text-sm shrink-0">
+                                    <i class="fa-solid fa-signature"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <h4 class="text-xs font-bold text-slate-800 dark:text-zinc-200">TypeScript 类型安全性
+                                        </h4>
+                                        <span
+                                            class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400">未验证</span>
+                                    </div>
+                                    <p class="text-[10px] text-slate-500 dark:text-zinc-400 mt-1">由于公共接口受到潜在冲击，残留泛型错漏风险。
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Verification Item 4 -->
+                            <div
+                                class="p-4 rounded-xl border border-emerald-200 bg-emerald-50/20 dark:border-emerald-900/30 dark:bg-emerald-950/10 flex items-start gap-3">
+                                <div
+                                    class="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-sm shrink-0">
+                                    <i class="fa-solid fa-list-check"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <h4 class="text-xs font-bold text-slate-800 dark:text-zinc-200">修改清单声明</h4>
+                                        <span
+                                            class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">已提供</span>
+                                    </div>
+                                    <p class="text-[10px] text-slate-500 dark:text-zinc-400 mt-1">Codex
+                                        在完结时列出了所有涉及变动的文件清单。</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Notice -->
+                        <div
+                            class="mt-4 bg-slate-50 dark:bg-zinc-950/40 p-3.5 rounded-xl border border-slate-100 dark:border-zinc-800 text-xs">
+                            <span class="font-bold text-slate-700 dark:text-zinc-300 block mb-1">完成度诊断提示：</span>
+                            <span class="text-slate-500 dark:text-zinc-400">虽然代码在逻辑编写上通过，但缺乏端到端证明。请务必养成在收尾前让 Codex
+                                运行</span>
+                            <code
+                                class="bg-slate-200 dark:bg-zinc-800 font-mono text-[10px] text-indigo-600 dark:text-indigo-400 px-1 py-0.5 rounded mx-1">pnpm test:auth && pnpm typecheck</code>
+                            并由 Codex 详细反馈诊断结果。
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 7. 改进建议区 -->
+                <section id="suggestions" class="scroll-mt-20">
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-base font-bold text-slate-800 dark:text-zinc-100 flex items-center gap-2">
+                                <i class="fa-solid fa-wand-magic-sparkles text-indigo-500"></i> 下一次会话核心改进建议
+                            </h3>
+                            <span class="text-xs text-slate-400 dark:text-zinc-500">遵循克制原则，默认提供 3 条最高效的可落地行动</span>
+                        </div>
+
+                        <!-- Recommendations grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- Rec 1 -->
+                            <div
+                                class="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-premium dark:shadow-premium-dark flex flex-col justify-between">
+                                <div>
+                                    <div class="flex justify-between items-start mb-3">
+                                        <span
+                                            class="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-400 tracking-wide">优先级:
+                                            高</span>
+                                        <span class="text-xs text-slate-400 dark:text-zinc-500 font-bold">建议 1</span>
+                                    </div>
+                                    <h4 class="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">
+                                        测试指令沉淀到 AGENTS.md
+                                    </h4>
+                                    <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed mb-4">
+                                        避免中途由开发人员费时翻找、频繁给予回归命令，从第一轮初始化开始保证 Codex 具备自我诊断能力。
+                                    </p>
+                                </div>
+                                <div class="pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-3">
+                                    <div class="flex justify-between items-center text-[10px]">
+                                        <span class="text-slate-400">主要载体：</span>
+                                        <strong class="font-mono text-indigo-500">AGENTS.md</strong>
+                                    </div>
+                                    <button @click="showAgentsModal = true"
+                                        class="w-full py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-500/10 transition">
+                                        获取建议配置补丁
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Rec 2 -->
+                            <div
+                                class="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-premium dark:shadow-premium-dark flex flex-col justify-between">
+                                <div>
+                                    <div class="flex justify-between items-start mb-3">
+                                        <span
+                                            class="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-400 tracking-wide">优先级:
+                                            中</span>
+                                        <span class="text-xs text-slate-400 dark:text-zinc-500 font-bold">建议 2</span>
+                                    </div>
+                                    <h4 class="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">
+                                        制定统一收尾断言模板
+                                    </h4>
+                                    <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed mb-4">
+                                        在结束会话前必须要求 Codex 依次运行类型安全性与回归命令测试，并反馈日志，否则不认定会话完成。
+                                    </p>
+                                </div>
+                                <div class="pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-3">
+                                    <div class="flex justify-between items-center text-[10px]">
+                                        <span class="text-slate-400">主要载体：</span>
+                                        <strong class="font-mono text-indigo-500">验收 Checklist 规范</strong>
+                                    </div>
+                                    <button
+                                        @click="copyToClipboard('- 修改了哪些文件？\n- 运行了哪些回归测试命令？\n- 完整测试通过输出是什么？\n- 是否有未解决的 lint/typecheck 问题？', '通用收尾清单已复制到剪贴板！')"
+                                        class="w-full py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-500/10 transition">
+                                        一键同步验收模板
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Rec 3 -->
+                            <div
+                                class="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-premium dark:shadow-premium-dark flex flex-col justify-between">
+                                <div>
+                                    <div class="flex justify-between items-start mb-3">
+                                        <span
+                                            class="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-zinc-300 tracking-wide">优先级:
+                                            低</span>
+                                        <span class="text-xs text-slate-400 dark:text-zinc-500 font-bold">建议 3</span>
+                                    </div>
+                                    <h4 class="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">
+                                        隔离大跨度清理和特定故障
+                                    </h4>
+                                    <p class="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed mb-4">
+                                        本次会话后期蔓延到了部分过期的 API 结构重写，容易产生不稳定性。类似动作应该建立新会话专门处置。
+                                    </p>
+                                </div>
+                                <div class="pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-3">
+                                    <div class="flex justify-between items-center text-[10px]">
+                                        <span class="text-slate-400">主要载体：</span>
+                                        <strong class="font-mono text-indigo-500">会话会话划分实践</strong>
+                                    </div>
+                                    <button @click="triggerToast('已为您将重构和故障拆解最佳范式规则沉淀')"
+                                        class="w-full py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-500/10 transition">
+                                        标记已知晓
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 8. 证据附录区 (Foldable details) -->
+                <section id="evidence" class="scroll-mt-20">
+                    <div
+                        class="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-6 shadow-premium dark:shadow-premium-dark">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3
+                                    class="text-base font-bold text-slate-800 dark:text-zinc-100 flex items-center gap-2">
+                                    <i class="fa-solid fa-box-archive text-indigo-500"></i> 复盘证据追溯附录
+                                </h3>
+                                <p class="text-xs text-slate-400 dark:text-zinc-500 mt-1">
+                                    通过历史关键切片，印证复盘报告的可信度和论据支撑（支持折叠展开，不干扰首屏阅读）
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Accordions -->
+                        <div class="space-y-3" x-data="{ activeAcc: null }">
+                            <!-- Accordion 1 -->
+                            <div class="border border-slate-100 dark:border-zinc-800 rounded-xl overflow-hidden">
+                                <button @click="activeAcc = activeAcc === 1 ? null : 1"
+                                    class="w-full text-left p-4 bg-slate-50 dark:bg-zinc-950/40 flex items-center justify-between text-xs font-bold transition">
+                                    <span class="flex items-center gap-2 text-slate-700 dark:text-zinc-300">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> 论据 A: 初始原始诉求片段
+                                    </span>
+                                    <i class="fa-solid text-slate-400"
+                                        :class="activeAcc === 1 ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                                </button>
+                                <div x-show="activeAcc === 1" x-collapse
+                                    class="p-4 border-t border-slate-100 dark:border-zinc-800 text-xs">
+                                    <div
+                                        class="bg-slate-950 text-slate-300 p-3.5 rounded-xl border border-slate-800 font-mono text-[11px] mb-2 leading-relaxed">
+                                        <span class="text-indigo-400 font-semibold">User:</span> "帮我修一下登录 token refresh
+                                        的问题。"
+                                    </div>
+                                    <p class="text-slate-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                                        <strong>分析定性：</strong> 原始指示极为笼统，未包含验证指令、子模块范围、不准改动边界。由于没有任何关于
+                                        <code>apps/web</code> 的约束，导致 Codex 在会话中后期前不得不进行泛化全局扫描。
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Accordion 2 -->
+                            <div class="border border-slate-100 dark:border-zinc-800 rounded-xl overflow-hidden">
+                                <button @click="activeAcc = activeAcc === 2 ? null : 2"
+                                    class="w-full text-left p-4 bg-slate-50 dark:bg-zinc-950/40 flex items-center justify-between text-xs font-bold transition">
+                                    <span class="flex items-center gap-2 text-slate-700 dark:text-zinc-300">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> 论据 B: 用户中途纠偏路径的指令
+                                    </span>
+                                    <i class="fa-solid text-slate-400"
+                                        :class="activeAcc === 2 ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                                </button>
+                                <div x-show="activeAcc === 2" x-collapse
+                                    class="p-4 border-t border-slate-100 dark:border-zinc-800 text-xs">
+                                    <div
+                                        class="bg-slate-950 text-slate-300 p-3.5 rounded-xl border border-slate-800 font-mono text-[11px] mb-2 leading-relaxed">
+                                        <span class="text-indigo-400 font-semibold">User:</span> "对不起，这个项目的核心路径在
+                                        apps/web 下面，测试指令是 pnpm test:auth，你刚刚改错地方了。"
+                                    </div>
+                                    <p class="text-slate-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                                        <strong>分析定性：</strong> 此条明确的人工干预纠偏了前期错向探索。证明了“测试命令”和“模块主要位置”具有极强的前置价值。如果在第 1
+                                        轮提供，能消除前 4 轮的来回消耗。
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Accordion 3 -->
+                            <div class="border border-slate-100 dark:border-zinc-800 rounded-xl overflow-hidden">
+                                <button @click="activeAcc = activeAcc === 3 ? null : 3"
+                                    class="w-full text-left p-4 bg-slate-50 dark:bg-zinc-950/40 flex items-center justify-between text-xs font-bold transition">
+                                    <span class="flex items-center gap-2 text-slate-700 dark:text-zinc-300">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 论据 C: 验证缺口断言证据
+                                    </span>
+                                    <i class="fa-solid text-slate-400"
+                                        :class="activeAcc === 3 ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                                </button>
+                                <div x-show="activeAcc === 3" x-collapse
+                                    class="p-4 border-t border-slate-100 dark:border-zinc-800 text-xs">
+                                    <div
+                                        class="bg-slate-950 text-slate-300 p-3.5 rounded-xl border border-slate-800 font-mono text-[11px] mb-2 leading-relaxed">
+                                        <span class="text-emerald-400 font-semibold">Codex:</span> "我已经完成了
+                                        apps/web/utils/auth.ts 的修改，替换了旧的 refreshToken 字段并适配了新的过期。故障已顺利修完，祝您开发愉快！"
+                                    </div>
+                                    <p class="text-slate-500 dark:text-zinc-400 mt-2 leading-relaxed">
+                                        <strong>分析定性：</strong> 修改完成后会话直接切断。终端执行记录、CI日志或自动化检查未出现，只依靠 Codex
+                                        自行评估代码可行性。这证实了复盘报告中关于“验证闭环基本缺失、可信度偏低”的客观判断。
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>

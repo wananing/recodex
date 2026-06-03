@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">ai-dev-review overview</title>
+  <desc id="desc">A product overview showing local AI coding transcripts becoming reports and workflow artifacts.</desc>
+  <defs>
+    <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#eef2f7"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#166534"/>
+      <stop offset=".48" stop-color="#1d4ed8"/>
+      <stop offset="1" stop-color="#b45309"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#18202b" flood-opacity=".13"/>
+    </filter>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M28 0H0V28" fill="none" stroke="#dbe3ee" stroke-width="1" opacity=".55"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="520" fill="url(#paper)"/>
+  <rect x="0" y="0" width="1200" height="520" fill="url(#grid)" opacity=".5"/>
+
+  <g transform="translate(70 62)">
+    <text x="0" y="0" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="18" fill="#64748b">LOCAL-FIRST AI CODING RETROSPECTIVE</text>
+    <text x="0" y="50" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="52" font-weight="800" fill="#18202b">ai-dev-review</text>
+    <text x="0" y="94" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="24" fill="#475569">把真实 AI 开发会话转成复盘报告和可落地工作流资产</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="76" y="220" width="260" height="186" rx="10" fill="#ffffff" stroke="#d9e1ec"/>
+    <rect x="96" y="244" width="116" height="14" rx="7" fill="#dbeafe"/>
+    <text x="96" y="288" font-family="ui-sans-serif, system-ui" font-size="25" font-weight="800" fill="#18202b">Codex sessions</text>
+    <text x="96" y="322" font-family="ui-sans-serif, system-ui" font-size="17" fill="#64748b">~/.codex/sessions</text>
+    <text x="96" y="352" font-family="ui-sans-serif, system-ui" font-size="16" fill="#64748b">JSONL transcripts</text>
+    <text x="96" y="382" font-family="ui-sans-serif, system-ui" font-size="16" fill="#64748b">Commands · errors · fixes</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="470" y="174" width="300" height="248" rx="10" fill="#ffffff" stroke="#d9e1ec"/>
+    <rect x="492" y="198" width="256" height="44" rx="8" fill="#f1f5f9"/>
+    <text x="512" y="226" font-family="ui-sans-serif, system-ui" font-size="18" font-weight="700" fill="#334155">Parser + Rulebase + LLM</text>
+    <g transform="translate(494 268)">
+      <circle cx="12" cy="12" r="12" fill="#dcfce7"/>
+      <text x="42" y="18" font-family="ui-sans-serif, system-ui" font-size="17" fill="#334155">fact extraction</text>
+      <circle cx="12" cy="58" r="12" fill="#dbeafe"/>
+      <text x="42" y="64" font-family="ui-sans-serif, system-ui" font-size="17" fill="#334155">verification diagnosis</text>
+      <circle cx="12" cy="104" r="12" fill="#ffedd5"/>
+      <text x="42" y="110" font-family="ui-sans-serif, system-ui" font-size="17" fill="#334155">improvement candidates</text>
+    </g>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="902" y="214" width="232" height="202" rx="10" fill="#ffffff" stroke="#d9e1ec"/>
+    <rect x="922" y="238" width="72" height="14" rx="7" fill="#bbf7d0"/>
+    <text x="922" y="282" font-family="ui-sans-serif, system-ui" font-size="25" font-weight="800" fill="#18202b">Artifacts</text>
+    <text x="922" y="318" font-family="ui-sans-serif, system-ui" font-size="17" fill="#64748b">report.html</text>
+    <text x="922" y="348" font-family="ui-sans-serif, system-ui" font-size="17" fill="#64748b">AGENTS.md patch</text>
+    <text x="922" y="378" font-family="ui-sans-serif, system-ui" font-size="17" fill="#64748b">skills · scripts · CI</text>
+  </g>
+
+  <path d="M350 315H450" fill="none" stroke="url(#accent)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M440 302l24 13-24 13" fill="none" stroke="#1d4ed8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M790 315H884" fill="none" stroke="url(#accent)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M874 302l24 13-24 13" fill="none" stroke="#b45309" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <rect x="77" y="454" width="1056" height="6" rx="3" fill="url(#accent)"/>
+</svg>

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">ai-dev-review HTML report preview</title>
+  <desc id="desc">A preview of the generated HTML report with overview, metrics, issues, verification and artifacts.</desc>
+  <defs>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#18202b" flood-opacity=".18"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="760" fill="#eef2f7"/>
+  <rect x="70" y="48" width="1060" height="664" rx="16" fill="#ffffff" filter="url(#shadow)"/>
+  <rect x="70" y="48" width="1060" height="48" rx="16" fill="#18202b"/>
+  <circle cx="102" cy="72" r="6" fill="#f87171"/>
+  <circle cx="124" cy="72" r="6" fill="#fbbf24"/>
+  <circle cx="146" cy="72" r="6" fill="#34d399"/>
+  <text x="182" y="78" font-family="ui-sans-serif, system-ui" font-size="15" fill="#cbd5e1">report.html</text>
+
+  <g transform="translate(106 138)">
+    <text x="0" y="0" font-family="ui-sans-serif, system-ui" font-size="16" fill="#64748b">AI Dev Review 静态报告</text>
+    <text x="0" y="46" font-family="ui-sans-serif, system-ui" font-size="36" font-weight="800" fill="#18202b">/workspace/aicoo</text>
+    <g transform="translate(720 2)" font-family="ui-sans-serif, system-ui" font-size="15" fill="#64748b">
+      <text x="0" y="0">来源  codex</text>
+      <text x="0" y="28">会话  project-aggregate</text>
+      <text x="0" y="56">模式  rules+heuristics</text>
+    </g>
+  </g>
+
+  <line x1="106" y1="220" x2="1094" y2="220" stroke="#dbe3ee"/>
+
+  <g transform="translate(106 256)">
+    <rect width="632" height="126" rx="8" fill="#ffffff" stroke="#d9e1ec"/>
+    <text x="24" y="40" font-family="ui-sans-serif, system-ui" font-size="22" font-weight="800" fill="#18202b">概览</text>
+    <text x="24" y="78" font-family="ui-sans-serif, system-ui" font-size="24" font-weight="800" fill="#18202b">近期 Codex 会话已按项目聚合成复盘报告。</text>
+    <text x="24" y="106" font-family="ui-sans-serif, system-ui" font-size="16" fill="#64748b">主要建议聚焦：验证闭环、上下文前置、失败分诊。</text>
+
+    <rect x="666" width="328" height="126" rx="8" fill="#ffffff" stroke="#d9e1ec"/>
+    <text x="690" y="40" font-family="ui-sans-serif, system-ui" font-size="22" font-weight="800" fill="#18202b">指标</text>
+    <rect x="690" y="58" width="80" height="44" rx="7" fill="#f8fafc" stroke="#d9e1ec"/>
+    <text x="716" y="87" font-family="ui-sans-serif, system-ui" font-size="22" font-weight="800" fill="#18202b">6</text>
+    <rect x="786" y="58" width="80" height="44" rx="7" fill="#f8fafc" stroke="#d9e1ec"/>
+    <text x="814" y="87" font-family="ui-sans-serif, system-ui" font-size="22" font-weight="800" fill="#166534">是</text>
+    <rect x="882" y="58" width="80" height="44" rx="7" fill="#f8fafc" stroke="#d9e1ec"/>
+    <text x="910" y="87" font-family="ui-sans-serif, system-ui" font-size="22" font-weight="800" fill="#b45309">9</text>
+  </g>
+
+  <g transform="translate(106 416)">
+    <rect width="632" height="202" rx="8" fill="#ffffff" stroke="#d9e1ec"/>
+    <text x="24" y="40" font-family="ui-sans-serif, system-ui" font-size="22" font-weight="800" fill="#18202b">主要问题</text>
+    <rect x="24" y="66" width="584" height="44" rx="8" fill="#fff7ed" stroke="#fed7aa"/>
+    <text x="42" y="94" font-family="ui-sans-serif, system-ui" font-size="17" font-weight="700" fill="#9a3412">验收证据不足</text>
+    <rect x="24" y="122" width="584" height="44" rx="8" fill="#f0fdf4" stroke="#bbf7d0"/>
+    <text x="42" y="150" font-family="ui-sans-serif, system-ui" font-size="17" font-weight="700" fill="#166534">项目上下文应提前进入会话</text>
+
+    <rect x="666" width="328" height="202" rx="8" fill="#ffffff" stroke="#d9e1ec"/>
+    <text x="690" y="40" font-family="ui-sans-serif, system-ui" font-size="22" font-weight="800" fill="#18202b">输出片段</text>
+    <rect x="690" y="64" width="282" height="112" rx="8" fill="#101827"/>
+    <text x="710" y="96" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#e2e8f0">## AI Development Completion</text>
+    <text x="710" y="124" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#cbd5e1">- Run relevant verification</text>
+    <text x="710" y="152" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#cbd5e1">- Report command results</text>
+  </g>
+</svg>
