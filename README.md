@@ -56,7 +56,7 @@ Project: /path/to/project
   Exports: .ai-review/exports/quickstart/projects/project-1234abcd
 ```
 
-![Generated HTML report preview](docs/assets/report-preview.svg)
+![Generated HTML report screenshot](docs/assets/report-page-screenshot.png)
 
 Generate a report for the latest indexed session:
 
