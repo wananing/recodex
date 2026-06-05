@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="460" viewBox="0 0 1200 460" role="img" aria-labelledby="title desc">
+  <title id="title">Report anatomy</title>
+  <desc id="desc">The structure of generated report.html and report.json.</desc>
+  <rect width="1200" height="460" fill="#f8fafc"/>
+  <rect x="54" y="42" width="1108" height="376" rx="18" fill="#ffffff" stroke="#dbe3ee"/>
+  <text x="86" y="88" font-family="ui-sans-serif, system-ui" font-size="30" font-weight="800" fill="#18202b">报告结构</text>
+  <text x="86" y="120" font-family="ui-sans-serif, system-ui" font-size="17" fill="#64748b">HTML 是展示层，JSON 是标准数据源；页面不会扫描 Codex session。</text>
+
+  <g transform="translate(86 158)" font-family="ui-sans-serif, system-ui">
+    <rect width="350" height="248" rx="12" fill="#f8fafc" stroke="#d9e1ec"/>
+    <text x="26" y="44" font-size="24" font-weight="800" fill="#18202b">report.json</text>
+    <text x="26" y="82" font-size="16" fill="#475569">meta · summary · metrics</text>
+    <text x="26" y="112" font-size="16" fill="#475569">flow · issues · verification</text>
+    <text x="26" y="142" font-size="16" fill="#475569">suggestions · artifacts</text>
+    <text x="26" y="172" font-size="16" fill="#475569">evidence refs</text>
+    <rect x="26" y="196" width="282" height="22" rx="11" fill="#dbeafe"/>
+
+    <rect x="516" width="350" height="248" rx="12" fill="#f8fafc" stroke="#d9e1ec"/>
+    <text x="542" y="44" font-size="24" font-weight="800" fill="#18202b">report.html</text>
+    <text x="542" y="82" font-size="16" fill="#475569">overview cards</text>
+    <text x="542" y="112" font-size="16" fill="#475569">timeline and findings</text>
+    <text x="542" y="142" font-size="16" fill="#475569">copyable AGENTS/checklist snippets</text>
+    <text x="542" y="172" font-size="16" fill="#475569">embedded JSON script tag</text>
+    <rect x="542" y="196" width="282" height="22" rx="11" fill="#bbf7d0"/>
+
+    <path d="M372 124h118" stroke="#1d4ed8" stroke-width="5" stroke-linecap="round"/>
+    <path d="M484 108l24 16-24 16" fill="none" stroke="#1d4ed8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="385" y="96" font-size="15" fill="#64748b">render</text>
+  </g>
+</svg>

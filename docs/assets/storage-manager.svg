@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="430" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
+  <title id="title">Storage manager</title>
+  <desc id="desc">Hot, warm and cold storage for Codex session transcripts.</desc>
+  <rect width="1200" height="430" fill="#f6f7f9"/>
+  <text x="70" y="72" font-family="ui-sans-serif, system-ui" font-size="30" font-weight="800" fill="#18202b">Session Storage Manager</text>
+  <text x="70" y="106" font-family="ui-sans-serif, system-ui" font-size="17" fill="#64748b">不把 ~/.codex/sessions 当长期主存储；先索引，再归档，必要时恢复。</text>
+
+  <g transform="translate(70 156)" font-family="ui-sans-serif, system-ui">
+    <rect width="300" height="190" rx="12" fill="#ffffff" stroke="#d9e1ec"/>
+    <text x="28" y="42" font-size="24" font-weight="800" fill="#b45309">Hot</text>
+    <text x="28" y="78" font-size="16" fill="#475569">~/.codex/sessions</text>
+    <text x="28" y="108" font-size="16" fill="#64748b">最近 7-14 天</text>
+    <text x="28" y="136" font-size="16" fill="#64748b">active / pinned / resume</text>
+
+    <rect x="390" width="300" height="190" rx="12" fill="#ffffff" stroke="#d9e1ec"/>
+    <text x="418" y="42" font-size="24" font-weight="800" fill="#1d4ed8">Warm</text>
+    <text x="418" y="78" font-size="16" fill="#475569">~/.ai-dev-review/archive</text>
+    <text x="418" y="108" font-size="16" fill="#64748b">可搜索索引</text>
+    <text x="418" y="136" font-size="16" fill="#64748b">原始 JSONL 可恢复</text>
+
+    <rect x="780" width="300" height="190" rx="12" fill="#ffffff" stroke="#d9e1ec"/>
+    <text x="808" y="42" font-size="24" font-weight="800" fill="#166534">Cold</text>
+    <text x="808" y="78" font-size="16" fill="#475569">summaries + evidence</text>
+    <text x="808" y="108" font-size="16" fill="#64748b">压缩 / 低价值旧会话</text>
+    <text x="808" y="136" font-size="16" fill="#64748b">不拖慢 Codex 热路径</text>
+
+    <path d="M316 94h58" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+    <path d="M346 80l20 14-20 14" fill="none" stroke="#94a3b8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M706 94h58" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+    <path d="M736 80l20 14-20 14" fill="none" stroke="#94a3b8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

@@ -1,17 +1,16 @@
 # ai-dev-review
 
+[English](README.en.md) | 中文
+
 > 复盘你的 AI 编程会话，找出下一次更高效使用 Codex / Claude Code / Cursor 的具体改进点。
 
-`ai-dev-review` is a local-first CLI that reads local AI coding session
-transcripts, analyzes how the session was used, and generates static reports and
-workflow improvement candidates.
+`ai-dev-review` 是一个本地优先的 AI 开发复盘 CLI。它读取本地 AI 编程会话记录，结构化分析会话过程，并默认生成静态 HTML 报告和可 review 的工作流改进候选。
 
-The first supported data source is Codex session transcripts. The first default
-output is a local `report.html`.
+第一数据源是 Codex session transcripts。第一默认输出是本地 `report.html`。
 
-![ai-dev-review overview](docs/assets/readme-overview.svg)
+![ai-dev-review generated hero](docs/assets/ai-dev-review-hero.png)
 
-It focuses on:
+它重点分析：
 
 - 哪些上下文给得太晚
 - 任务边界是否过大或发生漂移
@@ -19,20 +18,21 @@ It focuses on:
 - 收尾是否缺少测试、构建、typecheck、lint 或手动验证证据
 - 哪些信息应该沉淀到 `AGENTS.md`、checklist、script、hook、CI 或 skill
 
-It is **not** a chat viewer, **not** a prompt rewriting tool, and **not** a
-generic AI summary tool.
+它不是聊天记录查看器，不是 prompt 改写器，也不是泛泛的 AI 总结工具。
+
+![ai-dev-review overview](docs/assets/readme-overview.svg)
 
 ---
 
 ## Demo
 
-Run the default quickstart flow:
+直接运行默认流程：
 
 ```bash
 ai-review
 ```
 
-Default behavior:
+默认行为：
 
 ```text
 Found recent Codex sessions
@@ -43,7 +43,9 @@ Proposed improvement candidates
 Exported AGENTS/checklist/script/skill/CI artifacts
 ```
 
-Example output:
+![Quickstart flow](docs/assets/quickstart-flow.svg)
+
+示例输出：
 
 ```text
 Quickstart scanned 2 session(s) from the last 7d.
@@ -56,15 +58,17 @@ Project: /path/to/project
   Exports: .ai-review/exports/quickstart/projects/project-1234abcd
 ```
 
+真实报告截图：
+
 ![Generated HTML report screenshot](docs/assets/report-page-screenshot.png)
 
-Generate a report for the latest indexed session:
+生成最新会话报告：
 
 ```bash
 ai-review report latest
 ```
 
-Open the generated HTML report automatically:
+生成并打开 HTML 报告：
 
 ```bash
 ai-review report latest --open
@@ -72,46 +76,46 @@ ai-review report latest --open
 
 ---
 
-## Why
+## 为什么做这个
 
-Using Codex well is not just about model quality.
+用好 Codex 不只是模型能力问题。
 
-A messy AI coding session often comes from workflow issues:
+一次混乱的 AI 编程会话，常见原因是 workflow 出了问题：
 
-- The task starts without enough context.
-- Important project rules appear too late.
-- The session mixes debugging, refactoring, deployment, and documentation.
-- The agent keeps exploring the wrong path.
-- The final answer says "done" without verification evidence.
-- The same project facts are explained again and again.
+- 任务开始时上下文不够
+- 重要项目规则出现太晚
+- 同一个 session 混入调试、重构、部署和文档
+- AI 沿错误方向继续探索
+- 最终回答说完成，但没有验证证据
+- 同一个项目事实被用户重复解释
 
-`ai-dev-review` turns real AI coding sessions into actionable usage feedback.
+`ai-dev-review` 把真实 AI 编程会话转成可执行的使用反馈。
 
-The goal is simple:
+核心目标：
 
-> Learn how to use AI coding agents better from your own sessions.
+> 从自己的 AI 编程会话里，学会下一次怎么更好地使用 AI coding agent。
 
 ---
 
-## What It Generates
+## 会生成什么
 
-The default quickstart flow writes project-level reports and artifacts.
+默认 quickstart 会按项目写报告和改进资产。
 
-### HTML Report
+### HTML 报告
 
-`report.html` is the user-facing static report. It is generated as a single
-self-contained HTML file with structured JSON embedded inside:
+`report.html` 是用户看的静态报告。它是一个单文件 HTML，并把结构化 JSON 嵌入页面内部：
 
 ```html
 <script id="report-data" type="application/json">...</script>
 ```
 
-The page does not scan Codex sessions and does not fetch a sidecar JSON file at
-runtime. The CLI performs all parsing and analysis first, then renders the page.
+页面不扫描 Codex session，也不在运行时 fetch 外部 JSON。CLI 先完成解析和分析，再渲染页面。
 
-### Structured JSON
+![Report anatomy](docs/assets/report-anatomy.svg)
 
-`report.json` is the standard structured data source for the page. It contains:
+### 结构化 JSON
+
+`report.json` 是页面的标准数据源，包含：
 
 - `meta`
 - `summary`
@@ -125,53 +129,55 @@ runtime. The CLI performs all parsing and analysis first, then renders the page.
 - `artifacts`
 - `evidence`
 
-### Improvement Candidates
+### 改进候选
 
-The tool proposes concrete workflow improvements, such as:
+工具会生成可 review 的改进候选，例如：
 
-- update `AGENTS.md`
-- add a completion checklist
-- convert repeated commands into scripts
-- suggest hook or CI checks
-- create reusable skills
+- 更新 `AGENTS.md`
+- 增加完成前 checklist
+- 把重复命令转成脚本
+- 建议 hook 或 CI 检查
+- 生成可复用 skill
 
-All improvement candidates are reviewable before they are applied or exported.
+所有改进候选都应先人工确认，再应用或导出。
 
----
-
-## What It Is Not
-
-`ai-dev-review` is not:
-
-- a full Codex transcript viewer
-- a prompt rewriting assistant
-- a user-facing rulebase management system
-- a generic chat summarizer
-- a replacement for tests or code review
-- a tool that judges whether the final code is correct
-
-It analyzes the **usage process** around an AI coding session.
+![Improvement loop](docs/assets/improvement-loop.svg)
 
 ---
 
-## Installation
+## 它不是什么
 
-From source:
+`ai-dev-review` 不是：
+
+- 完整 Codex transcript viewer
+- prompt rewriting assistant
+- 面向用户的规则库管理系统
+- 泛用聊天总结器
+- 测试或 code review 的替代品
+- 判断最终代码是否正确的工具
+
+它分析的是 AI 编程会话周围的 **使用过程**。
+
+---
+
+## 安装
+
+从源码运行：
 
 ```bash
-git clone <repo-url>
-cd ai-dev-review
+git clone git@github.com:wananing/ai-review.git
+cd ai-review
 uv sync
 uv run ai-review
 ```
 
-Run without installing:
+不安装直接运行：
 
 ```bash
 PYTHONPATH=src python3 -m ai_dev_review
 ```
 
-Use the installed console command through `uv`:
+通过 `uv` 使用 console command：
 
 ```bash
 uv run ai-review
@@ -179,39 +185,39 @@ uv run ai-review
 
 ---
 
-## Quick Start
+## 快速开始
 
-Analyze a few recent Codex sessions and generate project reports:
+分析最近几个 Codex 会话并生成项目报告：
 
 ```bash
 ai-review
 ```
 
-Limit the recent window:
+限制扫描窗口：
 
 ```bash
 ai-review --since 7d --limit 5
 ```
 
-Generate a single-session HTML report:
+生成单次会话 HTML 报告：
 
 ```bash
 ai-review report latest
 ```
 
-Generate and open a single-session HTML report:
+生成并打开单次会话 HTML 报告：
 
 ```bash
 ai-review report latest --open
 ```
 
-Run local-only deterministic analysis:
+本地确定性分析：
 
 ```bash
 ai-review retro latest --local-only
 ```
 
-Run optional LLM-assisted analysis with a mock provider:
+使用 mock provider 测试 LLM 分析链路：
 
 ```bash
 ai-review retro latest --llm --llm-provider mock
@@ -219,19 +225,17 @@ ai-review retro latest --llm --llm-provider mock
 
 ---
 
-## Commands
+## 核心命令
 
 ### `ai-review`
 
-Default quickstart flow. It scans a small recent window, groups sessions by
-project, writes HTML reports, proposes improvement candidates, and exports
-workflow artifacts.
+默认 quickstart 流程。它读取最近一个小窗口，按项目聚合会话，生成 HTML 报告，提出改进候选，并导出工作流资产。
 
 ```bash
 ai-review
 ```
 
-Default outputs:
+默认输出：
 
 ```text
 .ai-review/reports/quickstart-index.md
@@ -251,83 +255,70 @@ Default outputs:
   ci/verify.yml
 ```
 
----
-
 ### `ai-review init`
 
-Catalog Codex transcript metadata first, without fully reading every session.
-This is useful when `~/.codex/sessions` is large.
+先 catalog Codex transcript 元数据，不立即完整读取所有 session。适合 `~/.codex/sessions` 很大的场景。
 
 ```bash
 ai-review init
 ai-review init --select 1 --process-limit 20
 ```
 
----
-
 ### `ai-review scan`
 
-Parse transcript files into the local SQLite database.
+把 transcript 文件解析进本地 SQLite。
 
 ```bash
 ai-review scan ~/.codex/sessions
 ai-review import ./some-session.jsonl
 ```
 
----
-
 ### `ai-review report latest`
 
-Generate a static HTML report for one indexed session.
+为一个已索引 session 生成静态 HTML 报告。
 
 ```bash
 ai-review report latest
 ai-review report latest --open
 ```
 
-This also writes a matching `retro-*.json` and `retro-*.md`.
-
----
+同时会写出匹配的 `retro-*.json` 和 `retro-*.md`。
 
 ### `ai-review retro`
 
-Generate Markdown retrospectives, with matching JSON and HTML sidecar files.
+生成 Markdown retrospective，并默认生成匹配的 JSON / HTML 文件。
 
 ```bash
 ai-review retro latest
 ai-review retro --since 7d
 ```
 
-With optional LLM analysis:
+可选 LLM 分析：
 
 ```bash
 ai-review retro latest --llm --llm-provider mock
 ai-review retro latest --llm --allow-cloud
 ```
 
----
-
 ### `ai-review patterns --since 30d`
 
-Summarize repeated patterns across recent sessions.
+汇总最近会话里的重复模式。
 
 ```bash
 ai-review patterns --since 30d
 ```
 
-Example themes:
+典型主题：
 
-- sessions ended without verification evidence
-- project context appeared late
-- repeated sandbox or permission friction
-- repeated command failures
-- repeated user corrections
-
----
+- 多次会话缺少验证证据
+- 项目上下文出现太晚
+- sandbox / permission 摩擦重复出现
+- 命令失败重复出现
+- 用户重复纠正同类问题
 
 ### `ai-review improvements`
 
-Generate and review improvement candidates.
+生成和 review 改进候选。
 
 ```bash
 ai-review improvements propose --since 30d
@@ -338,11 +329,9 @@ ai-review improvements reject <id>
 ai-review improvements apply <id>
 ```
 
----
-
 ### `ai-review export`
 
-Export accepted or proposed workflow artifacts.
+导出 workflow artifact。
 
 ```bash
 ai-review export agents
@@ -352,11 +341,9 @@ ai-review export scripts
 ai-review export ci
 ```
 
----
-
 ### `ai-review storage`
 
-Inspect and manage large Codex session storage.
+检查和管理大型 Codex session 存储。
 
 ```bash
 ai-review storage stats
@@ -368,37 +355,21 @@ ai-review storage restore <session-id>
 ai-review storage vacuum
 ```
 
-Example output:
+![Storage manager](docs/assets/storage-manager.svg)
 
-```text
-Codex sessions:
-  path: ~/.codex/sessions
-  files: 3120
-  total size: 8.4GB
-  largest file: 415MB
-  files > 10MB: 117
-  files older than 30d: 2400
-AI Review index:
-  indexed sessions: 3010
-  summaries: 2800
-  archive size: 5.9GB
-  hot path size: 680MB
-```
-
-Archive commands move old JSONL files out of the Codex hot path instead of
-deleting them.
+归档命令会把旧 JSONL 移出 Codex 热路径，而不是删除它们。
 
 ---
 
-## Report Output
+## 报告输出
 
-By default, reports are written under:
+默认报告目录：
 
 ```text
 .ai-review/reports/
 ```
 
-Project quickstart output:
+项目级 quickstart 输出：
 
 ```text
 .ai-review/reports/projects/<project>/
@@ -411,7 +382,7 @@ Project quickstart output:
   improvements.md
 ```
 
-Single-session output:
+单次会话输出：
 
 ```text
 .ai-review/reports/
@@ -420,17 +391,17 @@ Single-session output:
   retro-<title>-<session>.html
 ```
 
-Files:
+文件说明：
 
-- `report.html` — user-facing static HTML report
-- `report.json` — structured analysis data
-- `retro-*.md` — Markdown retrospective
-- `improvements.md` — reviewable improvement candidates
-- `patterns-*.md` — cross-session pattern summary
+- `report.html`：用户看的静态 HTML 报告
+- `report.json`：结构化分析数据
+- `retro-*.md`：Markdown retrospective
+- `improvements.md`：可 review 的改进候选
+- `patterns-*.md`：跨会话模式摘要
 
 ---
 
-## Data Flow
+## 数据流
 
 ![ai-dev-review data flow](docs/assets/data-flow.svg)
 
@@ -452,49 +423,49 @@ HTML renderer
 report.html
 ```
 
-The HTML page only displays the structured analysis result generated by the CLI.
+HTML 页面只展示 CLI 生成的结构化分析结果。
 
 ---
 
-## Analysis Focus
+## 分析关注点
 
-`ai-dev-review` analyzes five usage dimensions.
+`ai-dev-review` 分析五个使用维度。
 
-### 1. Task Setup
+### 1. 任务启动
 
-- Was the initial task clear enough?
-- Was the task too large?
-- Were constraints missing?
-- Was the completion condition unclear?
+- 初始任务是否足够清楚？
+- 任务是否太大？
+- 约束是否缺失？
+- 完成条件是否不明确？
 
-### 2. Context Timing
+### 2. 上下文时机
 
-- Which important facts appeared too late?
-- Did the user have to correct project paths or commands?
-- Should stable context move into `AGENTS.md`?
+- 哪些重要事实出现太晚？
+- 用户是否中途纠正项目路径或命令？
+- 稳定上下文是否应该写进 `AGENTS.md`？
 
-### 3. Process Intervention
+### 3. 过程干预
 
-- Did the agent continue after repeated failed attempts?
-- Should the user have paused and reset direction earlier?
-- Did the session drift into unrelated work?
+- AI 是否在多次失败后仍继续沿同一方向尝试？
+- 是否应该更早暂停并重设假设？
+- 会话是否漂移到无关工作？
 
-### 4. Verification & Acceptance
+### 4. 验证和验收
 
-- Was there a test/build/typecheck/lint/manual verification?
-- Did the final response include command results?
-- Was completion accepted without evidence?
+- 是否有 test / build / typecheck / lint / manual verification？
+- 最终回答是否包含命令结果？
+- 是否在没有证据时接受“完成”？
 
-### 5. Reusable Improvements
+### 5. 可复用改进
 
-- Should project commands be documented?
-- Should a checklist be created?
-- Should repeated commands become scripts?
-- Should repeated validation gaps become hooks or CI checks?
+- 项目命令是否应该被文档化？
+- 是否应该创建 checklist？
+- 重复命令是否应该脚本化？
+- 重复验证缺口是否应该升级为 hook 或 CI？
 
 ---
 
-## Example Finding
+## 示例 Finding
 
 ```text
 Problem:
@@ -512,10 +483,11 @@ Suggestion:
 
 ---
 
-## Optional LLM Analysis
+## 可选 LLM 分析
 
-LLM analysis is opt-in. By default, `ai-review` uses local deterministic parsing,
-Rulebase matching, and heuristic recommendations only.
+LLM 分析是 opt-in。默认情况下，`ai-review` 只使用本地确定性解析、规则经验库匹配和启发式建议。
+
+![LLM providers](docs/assets/llm-providers.svg)
 
 ### OpenAI
 
@@ -524,14 +496,14 @@ export OPENAI_API_KEY=...
 ai-review retro latest --llm --allow-cloud
 ```
 
-### Volcengine Ark / Doubao
+### 火山方舟 / 豆包
 
 ```bash
 export ARK_API_KEY=...
 ai-review retro latest --llm --llm-provider volcengine --allow-cloud
 ```
 
-Or configure it once in `~/.ai-review/config.toml`:
+或写入 `~/.ai-review/config.toml`：
 
 ```toml
 [analysis]
@@ -541,14 +513,14 @@ llm_provider = "volcengine"
 # llm_model = "doubao-seed-2-0-lite-260215"
 ```
 
-Then one API key is enough:
+然后只需要配置一个 key：
 
 ```bash
 export ARK_API_KEY=...
 ai-review retro latest --llm
 ```
 
-The Volcengine provider defaults to:
+火山 provider 默认使用：
 
 ```text
 https://ark.cn-beijing.volces.com/api/v3
@@ -556,24 +528,24 @@ https://ark.cn-beijing.volces.com/api/v3
 
 ---
 
-## Privacy
+## 隐私
 
-`ai-dev-review` is designed to be local-first.
+`ai-dev-review` 是本地优先设计。
 
-Default behavior:
+默认行为：
 
-- reads local Codex transcripts as read-only
-- does not modify original Codex session files
-- stores reports locally
-- redacts sensitive content before optional LLM analysis
-- blocks cloud LLM calls while `analysis.local_only = true`
-- supports `--local-only`
+- 只读本地 Codex transcripts
+- 不修改原始 Codex session 文件
+- 报告存储在本地
+- 可选 LLM 分析前先脱敏
+- `analysis.local_only = true` 时阻止云端 LLM 调用
+- 支持 `--local-only`
 
-Sensitive content redaction includes:
+脱敏范围包括：
 
 - API keys
 - tokens
-- `.env` content
+- `.env` 内容
 - database URLs
 - cookies
 - private keys
@@ -581,7 +553,7 @@ Sensitive content redaction includes:
 - home directory paths
 - emails
 
-Run local-only analysis:
+本地模式：
 
 ```bash
 ai-review retro latest --local-only
@@ -589,9 +561,9 @@ ai-review retro latest --local-only
 
 ---
 
-## Configuration
+## 配置
 
-Project config: `.ai-review.toml`
+项目配置：`.ai-review.toml`
 
 ```toml
 [project]
@@ -622,7 +594,7 @@ checklists_dir = "./docs/ai-checklists"
 scripts_dir = "./scripts/ai"
 ```
 
-Global config: `~/.ai-review/config.toml`
+全局配置：`~/.ai-review/config.toml`
 
 ```toml
 [analysis]
@@ -633,16 +605,13 @@ llm_api_key_env = "ARK_API_KEY"
 
 ---
 
-## Rulebase
+## 规则经验库
 
-`ai-dev-review` uses a built-in 规则经验库 (Rules & Experience Library) as the
-internal judgment layer for retrospectives and improvement recommendations.
+`ai-dev-review` 使用内置规则经验库作为复盘和改进建议的内部判断层。
 
-It is not exposed as a separate user-facing rule management command. The report
-does not show "rule hits" as a separate section. The Rulebase is used internally
-to keep analysis consistent and evidence-backed.
+它不是独立的用户规则管理命令。报告也不会单独展示“命中规则”。规则经验库只在内部用于保证分析稳定、可追溯、证据驱动。
 
-Current coverage includes:
+覆盖范围包括：
 
 - prompt quality
 - task planning
@@ -663,31 +632,31 @@ Current coverage includes:
 
 ### v0.1 Codex Local Review
 
-- [x] Read local Codex sessions
-- [x] SQLite indexing
+- [x] 读取本地 Codex sessions
+- [x] SQLite 索引
 - [x] CLI scan/list/search
 - [x] Markdown retrospective reports
 
 ### v0.2 HTML Reports
 
-- [x] Generate `report.json`
-- [x] Render static `report.html`
-- [x] Embed JSON into single-file HTML
-- [x] Generate HTML by default
+- [x] 生成 `report.json`
+- [x] 渲染静态 `report.html`
+- [x] 单文件 HTML 内嵌 JSON
+- [x] 默认生成 HTML
 
 ### v0.3 Improvement Engine
 
-- [x] Cross-session pattern report
-- [x] Improvement candidates
-- [x] Review queue
+- [x] 跨会话 pattern report
+- [x] improvement candidates
+- [x] review queue
 - [x] AGENTS/checklist/script/skill/CI exporters
 
 ### v0.4 Storage Manager
 
-- [x] Incremental raw session index
-- [x] Storage stats and largest files
-- [x] Archive / restore old Codex sessions
-- [x] Hot/warm/cold storage direction
+- [x] 增量 raw session index
+- [x] storage stats 和 largest files
+- [x] archive / restore old Codex sessions
+- [x] hot/warm/cold storage direction
 
 ### v0.5 LLM Gateway
 
@@ -709,61 +678,54 @@ Current coverage includes:
 
 ## FAQ
 
-### Is this a prompt optimizer?
+### 这是 prompt optimizer 吗？
 
-No. It may notice that some information should have appeared earlier, but the
-product is not centered on rewriting prompts.
+不是。它可能会发现某些信息应该更早给到 AI，但产品中心不是改写 prompt。
 
-The focus is reviewing the whole AI coding usage process: context, task
-boundary, intervention, verification, and reusable improvements.
+它关注的是完整 AI 编程使用过程：上下文、任务边界、过程干预、验证和可复用改进。
 
-### Does it judge whether the final code is correct?
+### 它会判断最终代码是否正确吗？
 
-No. It checks whether the session produced enough verification evidence.
+不会。它检查的是 session 是否产生了足够的验证证据。
 
-If the agent changed code but did not run tests, build, typecheck, lint, or
-manual verification, the report will flag completion confidence as low.
+如果 AI 改了代码但没有运行测试、构建、typecheck、lint 或手动验证，报告会降低完成可信度。
 
-### Does it upload my Codex sessions?
+### 它会上传 Codex sessions 吗？
 
-Not by default.
+默认不会。
 
-The default path is local deterministic analysis. If LLM analysis is enabled,
-the tool sends a redacted, compact analysis package rather than the full raw
-transcript.
+默认路径是本地确定性分析。启用 LLM 分析时，工具发送的是脱敏后的紧凑分析包，而不是完整原始 transcript。
 
-### Does it replace `AGENTS.md` or skills?
+### 它会替代 `AGENTS.md` 或 skills 吗？
 
-No.
+不会。
 
-It may suggest what should move into `AGENTS.md`, a checklist, a script, a hook,
-CI, or a skill, but every improvement should be reviewed before being applied.
+它可能建议把什么写进 `AGENTS.md`、checklist、script、hook、CI 或 skill，但每个改进都应该先 review。
 
-### Why generate HTML by default?
+### 为什么默认生成 HTML？
 
-Terminal output is good for a quick summary, but not for reading a structured
-review.
+终端适合快速摘要，但不适合阅读结构化复盘。
 
-HTML is easier to scan, save, share, print, and attach to issues or notes.
+HTML 更适合浏览、保存、分享、打印，也适合附到 issue 或笔记里。
 
 ---
 
-## Development
+## 开发
 
-Run tests:
+运行测试：
 
 ```bash
 PYTHONPATH=src python3 -m unittest discover -s tests
 python3 -m py_compile src/ai_dev_review/*.py
 ```
 
-Run from source:
+从源码运行：
 
 ```bash
 PYTHONPATH=src python3 -m ai_dev_review
 ```
 
-Run through `uv`:
+通过 `uv` 运行：
 
 ```bash
 uv run ai-review
