@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from ai_dev_review.analysis import propose_improvements
-from ai_dev_review.models import SessionRecord, TranscriptEvent
+from recodex.analysis import propose_improvements
+from recodex.models import SessionRecord, TranscriptEvent
 
 
 class ImprovementAnalysisTests(unittest.TestCase):

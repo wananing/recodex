@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ai_dev_review.cli import main
+from recodex.cli import main
 
 
 class ExtendedCliTests(unittest.TestCase):
@@ -120,11 +120,10 @@ class ExtendedCliTests(unittest.TestCase):
                 0,
             )
 
-            self.assertTrue((exports / "checklists" / "ai-review-checklist.md").exists())
-            self.assertTrue((exports / "scripts" / "ai-review-verify.sh").exists())
+            self.assertTrue((exports / "checklists" / "recodex-checklist.md").exists())
+            self.assertTrue((exports / "scripts" / "recodex-verify.sh").exists())
             self.assertTrue((exports / "ci" / "verify.yml").exists())
 
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from ai_dev_review.models import SessionRecord, TranscriptEvent
-from ai_dev_review.reports import (
+from recodex.models import SessionRecord, TranscriptEvent
+from recodex.reports import (
     render_checklist_export,
     render_ci_rule_export,
     render_retro,
@@ -188,16 +188,16 @@ class ReportRenderingTests(unittest.TestCase):
         self.assertIn("PYTHONPATH=src python3 -m unittest discover -s tests", checklist)
 
         self.assertIn("#!/usr/bin/env bash", script)
-        self.assertIn("ai-review scan", script)
-        self.assertIn("ai-review retro latest", script)
-        self.assertIn("ai-review improvements propose", script)
+        self.assertIn("recodex scan", script)
+        self.assertIn("recodex retro latest", script)
+        self.assertIn("recodex improvements propose", script)
         self.assertIn("Promote unit test loop", script)
         self.assertIn("Evidence:", script)
 
-        self.assertIn("name: AI Development Review", ci_rule)
+        self.assertIn("name: recodex", ci_rule)
         self.assertIn("workflow_dispatch:", ci_rule)
-        self.assertIn("ai-review patterns --since", ci_rule)
-        self.assertIn("ai-review improvements propose", ci_rule)
+        self.assertIn("recodex patterns --since", ci_rule)
+        self.assertIn("recodex improvements propose", ci_rule)
         self.assertIn("Promote unit test loop", ci_rule)
         self.assertIn("Evidence:", ci_rule)
 
@@ -207,7 +207,7 @@ class ReportRenderingTests(unittest.TestCase):
         ci_rule = render_ci_rule_export([])
 
         self.assertIn("No improvement candidates yet", checklist)
-        self.assertIn("ai-review scan", script)
+        self.assertIn("recodex scan", script)
         self.assertIn("No candidate-specific script suggestions yet", script)
         self.assertIn("workflow_dispatch:", ci_rule)
         self.assertIn("No candidate-specific CI rules yet", ci_rule)

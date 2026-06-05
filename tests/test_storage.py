@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ai_dev_review.db import connect, count_sessions, get_session, save_transcript, search_events
-from ai_dev_review.models import ParsedTranscript, SessionRecord, TranscriptEvent
+from recodex.db import connect, count_sessions, get_session, save_transcript, search_events
+from recodex.models import ParsedTranscript, SessionRecord, TranscriptEvent
 
 
 class StorageTests(unittest.TestCase):

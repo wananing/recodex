@@ -9,8 +9,8 @@ import time
 import unittest
 from pathlib import Path
 
-from ai_dev_review.cli import main
-from ai_dev_review.db import connect
+from recodex.cli import main
+from recodex.db import connect
 
 
 class StorageManagerTests(unittest.TestCase):

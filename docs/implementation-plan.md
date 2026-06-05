@@ -1,4 +1,4 @@
-# ai-dev-review Implementation Plan
+# recodex Implementation Plan
 
 ## Lead Objective
 
@@ -21,12 +21,12 @@ Goal: make local Codex sessions searchable and inspectable.
 Commands:
 
 ```bash
-ai-review init
-ai-review scan
-ai-review import ./session.jsonl
-ai-review sessions list
-ai-review sessions show latest
-ai-review search "test failed"
+recodex init
+recodex scan
+recodex import ./session.jsonl
+recodex sessions list
+recodex sessions show latest
+recodex search "test failed"
 ```
 
 Acceptance:
@@ -44,8 +44,8 @@ Goal: produce evidence-backed retrospectives for a single session.
 Commands:
 
 ```bash
-ai-review retro latest
-ai-review retro <session-id>
+recodex retro latest
+recodex retro <session-id>
 ```
 
 Acceptance:
@@ -62,14 +62,14 @@ Goal: find repeated issues across recent sessions.
 Commands:
 
 ```bash
-ai-review patterns --since 30d
+recodex patterns --since 30d
 ```
 
 Acceptance:
 
 - Detects command failures, repeated error terms, repeated commands, missing
   verification, sandbox friction, and user corrections.
-- Output is a Markdown report under `.ai-review/reports`.
+- Output is a Markdown report under `.recodex/reports`.
 
 ### P3: Improvement Queue
 
@@ -78,11 +78,11 @@ Goal: convert repeated problems into reviewable improvement candidates.
 Commands:
 
 ```bash
-ai-review improvements propose --since 30d
-ai-review improvements list
-ai-review improvements show <id>
-ai-review improvements accept <id>
-ai-review improvements reject <id>
+recodex improvements propose --since 30d
+recodex improvements list
+recodex improvements show <id>
+recodex improvements accept <id>
+recodex improvements reject <id>
 ```
 
 Acceptance:
@@ -100,11 +100,11 @@ Goal: export accepted or proposed candidates into workflow artifacts.
 Commands:
 
 ```bash
-ai-review export agents
-ai-review export skills
-ai-review export checklist
-ai-review export scripts
-ai-review export ci
+recodex export agents
+recodex export skills
+recodex export checklist
+recodex export scripts
+recodex export ci
 ```
 
 Acceptance:
@@ -122,15 +122,15 @@ Goal: keep the system local-first with safe defaults.
 Commands:
 
 ```bash
-ai-review privacy scan latest
-ai-review retro latest --redact
-ai-review retro latest --local-only
+recodex privacy scan latest
+recodex retro latest --redact
+recodex retro latest --local-only
 ```
 
 Acceptance:
 
-- Project config: `.ai-review.toml`.
-- Global config: `~/.ai-review/config.toml`.
+- Project config: `.recodex.toml`.
+- Global config: `~/.recodex/config.toml`.
 - Default redaction covers common API keys, tokens, Authorization headers,
   database URLs, JWT secrets, emails, home paths, SSH keys, cookies, and `.env`
   style values.
@@ -142,8 +142,8 @@ Acceptance:
 
 Ownership:
 
-- `src/ai_dev_review/db.py`
-- `src/ai_dev_review/models.py`
+- `src/recodex/db.py`
+- `src/recodex/models.py`
 - `tests/test_storage.py`
 
 Goal:
@@ -163,8 +163,8 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 
 Ownership:
 
-- `src/ai_dev_review/config.py`
-- `src/ai_dev_review/privacy.py`
+- `src/recodex/config.py`
+- `src/recodex/privacy.py`
 - `tests/test_privacy_config.py`
 
 Goal:
@@ -183,7 +183,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 
 Ownership:
 
-- `src/ai_dev_review/reports.py`
+- `src/recodex/reports.py`
 - `tests/test_reports.py`
 
 Goal:
@@ -202,8 +202,8 @@ PYTHONPATH=src python3 -m unittest discover -s tests
 
 Ownership:
 
-- `src/ai_dev_review/transcripts.py`
-- `src/ai_dev_review/models.py`
+- `src/recodex/transcripts.py`
+- `src/recodex/models.py`
 - `tests/test_codex_adapter.py`
 
 Goal:
@@ -244,7 +244,7 @@ Final MVP gate:
 
 ```bash
 make test
-PYTHONPATH=src python3 -m ai_dev_review scan --dry-run
-PYTHONPATH=src python3 -m ai_dev_review --help
+PYTHONPATH=src python3 -m recodex scan --dry-run
+PYTHONPATH=src python3 -m recodex --help
 ```
 

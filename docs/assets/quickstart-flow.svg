@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
-  <title id="title">Quickstart flow</title>
-  <desc id="desc">The default ai-review command scans recent sessions, groups by project, renders reports and exports artifacts.</desc>
+  <title id="title">Default latest report flow</title>
+  <desc id="desc">The default recodex command reads the latest Codex session, generates report data, renders a local HTML file, and opens it in the browser.</desc>
   <defs>
     <linearGradient id="stroke" x1="0" x2="1" y1="0" y2="0">
       <stop offset="0" stop-color="#166534"/>
@@ -12,34 +12,34 @@
     </filter>
   </defs>
   <rect width="1200" height="360" fill="#f6f7f9"/>
-  <text x="68" y="70" font-family="ui-sans-serif, system-ui" font-size="30" font-weight="800" fill="#18202b">默认快速启动流程</text>
-  <text x="68" y="104" font-family="ui-sans-serif, system-ui" font-size="17" fill="#64748b">直接运行 ai-review，就能读取最近会话并按项目生成报告与改进资产。</text>
+  <text x="68" y="70" font-family="ui-sans-serif, system-ui" font-size="30" font-weight="800" fill="#18202b">默认 latest 报告流程</text>
+  <text x="68" y="104" font-family="ui-sans-serif, system-ui" font-size="17" fill="#64748b">直接运行 recodex，就能生成本地 report.html 并自动在浏览器打开。</text>
 
   <g transform="translate(68 158)" filter="url(#shadow)" font-family="ui-sans-serif, system-ui">
     <g>
       <rect width="174" height="110" rx="10" fill="#ffffff" stroke="#d9e1ec"/>
-      <text x="22" y="40" font-size="20" font-weight="800" fill="#18202b">ai-review</text>
+      <text x="22" y="40" font-size="20" font-weight="800" fill="#18202b">recodex</text>
       <text x="22" y="70" font-size="15" fill="#64748b">默认命令</text>
     </g>
     <g transform="translate(214 0)">
       <rect width="174" height="110" rx="10" fill="#ffffff" stroke="#d9e1ec"/>
-      <text x="22" y="40" font-size="20" font-weight="800" fill="#18202b">最近会话</text>
-      <text x="22" y="70" font-size="15" fill="#64748b">since 7d · limit 5</text>
+      <text x="22" y="40" font-size="20" font-weight="800" fill="#18202b">latest session</text>
+      <text x="22" y="70" font-size="15" fill="#64748b">Codex JSONL</text>
     </g>
     <g transform="translate(428 0)">
       <rect width="174" height="110" rx="10" fill="#ffffff" stroke="#d9e1ec"/>
-      <text x="22" y="40" font-size="20" font-weight="800" fill="#18202b">按项目聚合</text>
-      <text x="22" y="70" font-size="15" fill="#64748b">避免跨项目混杂</text>
+      <text x="22" y="40" font-size="20" font-weight="800" fill="#18202b">结构化分析</text>
+      <text x="22" y="70" font-size="15" fill="#64748b">rules + evidence</text>
     </g>
     <g transform="translate(642 0)">
       <rect width="174" height="110" rx="10" fill="#ffffff" stroke="#d9e1ec"/>
-      <text x="22" y="40" font-size="20" font-weight="800" fill="#18202b">报告输出</text>
+      <text x="22" y="40" font-size="20" font-weight="800" fill="#18202b">单文件报告</text>
       <text x="22" y="70" font-size="15" fill="#64748b">report.html/json</text>
     </g>
     <g transform="translate(856 0)">
       <rect width="174" height="110" rx="10" fill="#ffffff" stroke="#d9e1ec"/>
-      <text x="22" y="40" font-size="20" font-weight="800" fill="#18202b">工作流资产</text>
-      <text x="22" y="70" font-size="15" fill="#64748b">AGENTS · skills · CI</text>
+      <text x="22" y="40" font-size="20" font-weight="800" fill="#18202b">浏览器打开</text>
+      <text x="22" y="70" font-size="15" fill="#64748b">file:// 本地优先</text>
     </g>
 
     <path d="M184 55h26" stroke="url(#stroke)" stroke-width="5" stroke-linecap="round"/>

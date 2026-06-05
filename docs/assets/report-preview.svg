@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
-  <title id="title">ai-dev-review HTML report preview</title>
+  <title id="title">recodex HTML report preview</title>
   <desc id="desc">A preview of the generated HTML report with overview, metrics, issues, verification and artifacts.</desc>
   <defs>
     <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
@@ -15,7 +15,7 @@
   <text x="182" y="78" font-family="ui-sans-serif, system-ui" font-size="15" fill="#cbd5e1">report.html</text>
 
   <g transform="translate(106 138)">
-    <text x="0" y="0" font-family="ui-sans-serif, system-ui" font-size="16" fill="#64748b">AI Dev Review 静态报告</text>
+    <text x="0" y="0" font-family="ui-sans-serif, system-ui" font-size="16" fill="#64748b">recodex 静态报告</text>
     <text x="0" y="46" font-family="ui-sans-serif, system-ui" font-size="36" font-weight="800" fill="#18202b">/workspace/aicoo</text>
     <g transform="translate(720 2)" font-family="ui-sans-serif, system-ui" font-size="15" fill="#64748b">
       <text x="0" y="0">来源  codex</text>

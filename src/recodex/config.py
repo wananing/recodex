@@ -62,8 +62,8 @@ def load_config(project_dir: Path | None = None) -> ReviewConfig:
     home = Path(os.environ.get("HOME", str(Path.home()))).expanduser().resolve()
     raw = _default_raw_config(root, home)
 
-    global_path = home / ".ai-review" / "config.toml"
-    project_path = root / ".ai-review.toml"
+    global_path = home / ".recodex" / "config.toml"
+    project_path = root / ".recodex.toml"
     if global_path.exists():
         _deep_update(raw, _load_toml(global_path))
     if project_path.exists():
@@ -101,7 +101,7 @@ def _default_raw_config(root: Path, home: Path) -> dict[str, Any]:
             "llm_base_url": None,
         },
         "outputs": {
-            "reports_dir": str(root / ".ai-review" / "reports"),
+            "reports_dir": str(root / ".recodex" / "reports"),
             "agents_md": str(root / "AGENTS.md"),
             "skills_dir": str(root / ".agents" / "skills"),
             "checklists_dir": str(root / "docs" / "ai-checklists"),

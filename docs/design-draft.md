@@ -1,8 +1,8 @@
-# ai-dev-review Design Draft
+# recodex Design Draft
 
 ## Positioning
 
-Product name: `ai-dev-review`
+Product name: `recodex`
 
 One-line positioning:
 
@@ -90,7 +90,7 @@ Go or Rust can be used later for a high-performance watcher or single-file binar
 ## 4. Architecture
 
 ```text
-ai-dev-review
+recodex
 ├── adapters/                 # different AI tools and data sources
 │   ├── codex/
 │   ├── git/
@@ -163,7 +163,7 @@ $CODEX_SESSIONS_DIR
 It should also support manual import:
 
 ```bash
-ai-review import ./some-session.jsonl
+recodex import ./some-session.jsonl
 ```
 
 Future sources:
@@ -575,35 +575,35 @@ jobs:
 Version 1 CLI:
 
 ```bash
-ai-review init
-ai-review scan
-ai-review sessions list
-ai-review sessions show latest
-ai-review search "test failed"
-ai-review retro latest
-ai-review retro --since 7d
-ai-review patterns --since 30d
-ai-review improvements propose --since 30d
-ai-review improvements list
-ai-review improvements show <id>
-ai-review improvements accept <id>
-ai-review improvements reject <id>
-ai-review improvements apply <id>
-ai-review export agents
-ai-review export skills
-ai-review export checklist
-ai-review export scripts
+recodex init
+recodex scan
+recodex sessions list
+recodex sessions show latest
+recodex search "test failed"
+recodex retro latest
+recodex retro --since 7d
+recodex patterns --since 30d
+recodex improvements propose --since 30d
+recodex improvements list
+recodex improvements show <id>
+recodex improvements accept <id>
+recodex improvements reject <id>
+recodex improvements apply <id>
+recodex export agents
+recodex export skills
+recodex export checklist
+recodex export scripts
 ```
 
 Typical flow:
 
 ```bash
-ai-review scan
-ai-review retro latest
-ai-review improvements propose --since 14d
-ai-review improvements list
-ai-review improvements accept imp_001
-ai-review improvements apply imp_001
+recodex scan
+recodex retro latest
+recodex improvements propose --since 14d
+recodex improvements list
+recodex improvements accept imp_001
+recodex improvements apply imp_001
 ```
 
 ## 13. Configuration
@@ -611,7 +611,7 @@ ai-review improvements apply imp_001
 Project config:
 
 ```toml
-# .ai-review.toml
+# .recodex.toml
 [project]
 name = "my-project"
 root = "."
@@ -635,7 +635,7 @@ agents_md = "./AGENTS.md"
 skills_dir = "./.agents/skills"
 checklists_dir = "./docs/ai-checklists"
 scripts_dir = "./scripts/ai"
-reports_dir = "./.ai-review/reports"
+reports_dir = "./.recodex/reports"
 
 [workflow]
 enable_codex_hooks = false
@@ -645,7 +645,7 @@ auto_retro_after_session = false
 Global config:
 
 ```toml
-# ~/.ai-review/config.toml
+# ~/.recodex/config.toml
 [default_sources.codex]
 sessions_dir = "~/.codex/sessions"
 
@@ -692,9 +692,9 @@ Redaction rules:
 Commands:
 
 ```bash
-ai-review privacy scan latest
-ai-review retro latest --redact
-ai-review retro latest --local-only
+recodex privacy scan latest
+recodex retro latest --redact
+recodex retro latest --local-only
 ```
 
 ## 15. LLM Analysis Strategy
@@ -771,7 +771,7 @@ LLM responsibilities:
 Before a task:
 
 ```bash
-ai-review before --project .
+recodex before --project .
 ```
 
 Output:
@@ -801,7 +801,7 @@ This can be copied into Codex manually at first. Later it can be integrated thro
 Later watcher:
 
 ```bash
-ai-review watch --project .
+recodex watch --project .
 ```
 
 Detect:
@@ -818,7 +818,7 @@ This is not required for version 1.
 After a task:
 
 ```bash
-ai-review after --session latest
+recodex after --session latest
 ```
 
 Actions:
@@ -837,7 +837,7 @@ Review is required. Improvements should not be applied fully automatically.
 Command:
 
 ```bash
-ai-review improvements list
+recodex improvements list
 ```
 
 Example output:
@@ -853,7 +853,7 @@ Example output:
 Show details:
 
 ```bash
-ai-review improvements show imp_001
+recodex improvements show imp_001
 ```
 
 Example detail:
@@ -893,10 +893,10 @@ Low. This only adds project instructions.
 Actions:
 
 ```bash
-ai-review improvements accept imp_001
-ai-review improvements reject imp_002
-ai-review improvements edit imp_003
-ai-review improvements apply imp_001
+recodex improvements accept imp_001
+recodex improvements reject imp_002
+recodex improvements edit imp_003
+recodex improvements apply imp_001
 ```
 
 ## 19. MVP Development Schedule
@@ -913,10 +913,10 @@ Goal:
 Deliverables:
 
 ```bash
-ai-review scan
-ai-review sessions list
-ai-review sessions show latest
-ai-review search "error"
+recodex scan
+recodex sessions list
+recodex sessions show latest
+recodex search "error"
 ```
 
 ### Week 2: Single-Session Retrospective
@@ -929,13 +929,13 @@ Goal:
 Deliverable:
 
 ```bash
-ai-review retro latest
+recodex retro latest
 ```
 
 Output:
 
 ```text
-.ai-review/reports/session_xxx.md
+.recodex/reports/session_xxx.md
 ```
 
 ### Week 3: Multi-Session Pattern Discovery
@@ -948,7 +948,7 @@ Goal:
 Deliverable:
 
 ```bash
-ai-review patterns --since 30d
+recodex patterns --since 30d
 ```
 
 ### Week 4: Improvement Candidate Queue
@@ -961,10 +961,10 @@ Goal:
 Deliverables:
 
 ```bash
-ai-review improvements propose --since 30d
-ai-review improvements list
-ai-review improvements show <id>
-ai-review improvements accept <id>
+recodex improvements propose --since 30d
+recodex improvements list
+recodex improvements show <id>
+recodex improvements accept <id>
 ```
 
 ### Week 5: Exporters
@@ -979,10 +979,10 @@ Goal:
 Deliverables:
 
 ```bash
-ai-review export agents
-ai-review export skills
-ai-review export checklist
-ai-review export scripts
+recodex export agents
+recodex export skills
+recodex export checklist
+recodex export scripts
 ```
 
 ### Week 6: Workflow Integration
@@ -995,9 +995,9 @@ Goal:
 Deliverables:
 
 ```bash
-ai-review before --project .
-ai-review after --session latest
-ai-review workflow install-codex-hooks
+recodex before --project .
+recodex after --session latest
+recodex workflow install-codex-hooks
 ```
 
 ## 20. MVP Acceptance Criteria
@@ -1087,7 +1087,7 @@ Differentiation:
 
 ## 23. Recommended First Shape
 
-Product name: `ai-dev-review`
+Product name: `recodex`
 
 Shape:
 
@@ -1117,13 +1117,13 @@ First outputs:
 Core commands:
 
 ```bash
-ai-review scan
-ai-review retro latest
-ai-review patterns --since 30d
-ai-review improvements propose
-ai-review improvements review
-ai-review export agents
-ai-review export skills
+recodex scan
+recodex retro latest
+recodex patterns --since 30d
+recodex improvements propose
+recodex improvements review
+recodex export agents
+recodex export skills
 ```
 
 Final one-line plan:

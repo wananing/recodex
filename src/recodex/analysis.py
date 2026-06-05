@@ -125,7 +125,7 @@ def _project_level_drafts(
                 "patterns",
                 "定期复查近期重复失败主题",
                 f"涉及 {len(sessions)} 个会话，共检测到 {total_errors} 个错误类信号。",
-                "每周运行 `ai-review patterns --since 30d`，只选择最高频的 1 个失败主题落地为 checklist、AGENTS.md 规则、脚本或 CI/eval。",
+                "每周运行 `recodex patterns --since 30d`，只选择最高频的 1 个失败主题落地为 checklist、AGENTS.md 规则、脚本或 CI/eval。",
             )
         )
     return drafts

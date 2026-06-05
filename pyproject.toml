@@ -1,5 +1,5 @@
 [project]
-name = "ai-dev-review"
+name = "recodex"
 version = "0.1.0"
 description = "Local CLI for reviewing AI-assisted development transcripts."
 readme = "README.md"
@@ -7,7 +7,7 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
-ai-review = "ai_dev_review.cli:main"
+recodex = "recodex.cli:main"
 
 [dependency-groups]
 dev = [

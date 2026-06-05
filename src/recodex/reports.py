@@ -185,7 +185,7 @@ def render_patterns(
             "",
             "## Suggested Review Loop",
             "",
-            "- Pick the highest-friction session and run `ai-review retro latest` after rescanning.",
+            "- Pick the highest-friction session and run `recodex retro latest` after rescanning.",
             "- Convert one repeated failure into a checklist item.",
             "- Convert one repeated command sequence into a script or Make target.",
             "- Export AGENTS.md suggestions after accepting the strongest improvement candidates.",
@@ -204,7 +204,7 @@ def render_improvements(rows: list[Row]) -> str:
         "",
     ]
     if not rows:
-        lines.append("No candidates yet. Run `ai-review improvements propose` after scanning transcripts.")
+        lines.append("No candidates yet. Run `recodex improvements propose` after scanning transcripts.")
         lines.append("")
         return "\n".join(lines)
 
@@ -235,7 +235,7 @@ def render_agents_patch(rows: list[Row]) -> str:
     for row in rows[:8]:
         bullets.append(f"+- {redact_text(row['recommendation'])}")
     if not bullets:
-        bullets.append("+- Run `ai-review improvements propose` after scanning transcripts.")
+        bullets.append("+- Run `recodex improvements propose` after scanning transcripts.")
 
     return "\n".join(
         [
@@ -247,12 +247,12 @@ def render_agents_patch(rows: list[Row]) -> str:
             "--- a/AGENTS.md",
             "+++ b/AGENTS.md",
             "@@",
-            "+## AI Development Review",
+            "+## recodex",
             "+",
             "+使用本地复盘减少重复 AI 开发失败。",
             "+",
-            "+- 完成较大 AI 辅助开发后，运行 `ai-review scan` 和 `ai-review retro latest`。",
-            "+- 调整团队工作流前，先用 `ai-review patterns --since 30d` 复查近期模式。",
+            "+- 完成较大 AI 辅助开发后，运行 `recodex scan` 和 `recodex retro latest`。",
+            "+- 调整团队工作流前，先用 `recodex patterns --since 30d` 复查近期模式。",
             "+- 将重复失败沉淀为 checklist、skill 或脚本。",
             *bullets,
             "```",
@@ -278,7 +278,7 @@ def render_checklist_export(rows: list[Row]) -> str:
         "",
     ]
     if not rows:
-        lines.extend(["No improvement candidates yet. Run `ai-review improvements propose`.", ""])
+        lines.extend(["No improvement candidates yet. Run `recodex improvements propose`.", ""])
         return "\n".join(lines)
 
     for row in rows:
@@ -301,18 +301,18 @@ def render_scripts_export(rows: list[Row]) -> str:
         "set -euo pipefail",
         "",
         "# AI development review loop.",
-        'TRANSCRIPTS="${AI_REVIEW_TRANSCRIPTS:-$HOME/.codex/sessions}"',
-        'ai-review scan "$TRANSCRIPTS"',
-        "ai-review retro latest",
-        "ai-review patterns --since 30d",
-        "ai-review improvements propose --since 30d",
+        'TRANSCRIPTS="${RECODEX_TRANSCRIPTS:-$HOME/.codex/sessions}"',
+        'recodex scan "$TRANSCRIPTS"',
+        "recodex retro latest",
+        "recodex patterns --since 30d",
+        "recodex improvements propose --since 30d",
         "",
     ]
     if not rows:
         lines.extend(
             [
                 "# No candidate-specific script suggestions yet.",
-                "# Run `ai-review improvements propose` after scanning transcripts.",
+                "# Run `recodex improvements propose` after scanning transcripts.",
                 "",
             ]
         )
@@ -333,7 +333,7 @@ def render_scripts_export(rows: list[Row]) -> str:
 
 def render_ci_rule_export(rows: list[Row]) -> str:
     lines = [
-        "name: AI Development Review",
+        "name: recodex",
         "",
         "on:",
         "  workflow_dispatch:",
@@ -348,8 +348,8 @@ def render_ci_rule_export(rows: list[Row]) -> str:
         "      - uses: actions/checkout@v4",
         "      - name: Review recent AI development patterns",
         "        run: |",
-        "          ai-review patterns --since 30d",
-        "          ai-review improvements propose --since 30d",
+        "          recodex patterns --since 30d",
+        "          recodex improvements propose --since 30d",
         "",
     ]
     if not rows:
@@ -370,11 +370,11 @@ def render_ci_rule_export(rows: list[Row]) -> str:
 
 
 def write_checklist_export(directory: Path, rows: list[Row]) -> Path:
-    return write_text(directory / "checklists" / "ai-review-checklist.md", render_checklist_export(rows))
+    return write_text(directory / "checklists" / "recodex-checklist.md", render_checklist_export(rows))
 
 
 def write_scripts_export(directory: Path, rows: list[Row]) -> Path:
-    path = write_text(directory / "scripts" / "ai-review-verify.sh", render_scripts_export(rows))
+    path = write_text(directory / "scripts" / "recodex-verify.sh", render_scripts_export(rows))
     path.chmod(0o755)
     return path
 
@@ -384,7 +384,7 @@ def write_ci_rule_export(directory: Path, rows: list[Row]) -> Path:
 
 
 def write_skill_exports(directory: Path, rows: list[Row]) -> list[Path]:
-    skill_dir = directory / "skills" / "ai-dev-review-retro"
+    skill_dir = directory / "skills" / "recodex-retro"
     checklist_dir = directory / "checklists"
     scripts_dir = directory / "scripts"
     skill = write_text(
@@ -392,11 +392,11 @@ def write_skill_exports(directory: Path, rows: list[Row]) -> list[Path]:
         _skill_markdown(rows),
     )
     checklist = write_text(
-        checklist_dir / "ai-review-retro.md",
+        checklist_dir / "recodex-retro.md",
         _checklist_markdown(rows),
     )
     script = write_text(
-        scripts_dir / "ai-review-weekly.sh",
+        scripts_dir / "recodex-weekly.sh",
         _weekly_script(),
     )
     script.chmod(0o755)
@@ -523,7 +523,7 @@ def _skill_markdown(rows: list[Row]) -> str:
     return "\n".join(
         [
             "---",
-            "name: ai-dev-review-retro",
+            "name: recodex-retro",
             "description: Review AI development sessions and turn repeated issues into workflow assets.",
             "---",
             "",
@@ -533,9 +533,9 @@ def _skill_markdown(rows: list[Row]) -> str:
             "",
             "## Steps",
             "",
-            "- Run `ai-review scan` against local transcripts.",
-            "- Run `ai-review retro latest` for the most recent session.",
-            "- Run `ai-review improvements propose` and review the candidates.",
+            "- Run `recodex scan` against local transcripts.",
+            "- Run `recodex retro latest` for the most recent session.",
+            "- Run `recodex improvements propose` and review the candidates.",
             "- Export accepted guidance into AGENTS.md, skills, checklists, or scripts.",
             "",
             "## Current Recommendations",
@@ -565,11 +565,11 @@ def _weekly_script() -> str:
             "#!/usr/bin/env bash",
             "set -euo pipefail",
             "",
-            'TRANSCRIPTS="${AI_REVIEW_TRANSCRIPTS:-$HOME/.codex/sessions}"',
-            'ai-review scan "$TRANSCRIPTS"',
-            "ai-review patterns --since 30d",
-            "ai-review improvements propose",
-            "ai-review improvements review",
+        'TRANSCRIPTS="${RECODEX_TRANSCRIPTS:-$HOME/.codex/sessions}"',
+            'recodex scan "$TRANSCRIPTS"',
+            "recodex patterns --since 30d",
+            "recodex improvements propose",
+            "recodex improvements review",
             "",
         ]
     )

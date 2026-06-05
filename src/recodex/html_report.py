@@ -170,7 +170,7 @@ def render_report_html(report: dict[str, Any]) -> str:
     summary = _dict(report.get("summary"))
     metrics = _dict(report.get("metrics"))
     embedded_json = _json_for_script(report)
-    title = f"{_h(str(meta.get('project') or 'AI Dev Review'))} - AI Dev Review"
+    title = f"{_h(str(meta.get('project') or 'recodex'))} - recodex"
 
     return f"""<!doctype html>
 <html lang="zh-CN">
@@ -338,7 +338,7 @@ def render_report_html(report: dict[str, Any]) -> str:
   <main class="page">
     <header class="topbar">
       <div>
-        <p class="eyebrow">AI Dev Review 静态报告</p>
+        <p class="eyebrow">recodex 静态报告</p>
         <h1>{_h(str(meta.get("project") or "Unknown Project"))}</h1>
       </div>
       <div class="meta" aria-label="报告元数据">

@@ -6,8 +6,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from ai_dev_review.config import load_config
-from ai_dev_review.privacy import redact_mapping, redact_text
+from recodex.config import load_config
+from recodex.privacy import redact_mapping, redact_text
 
 
 class ConfigTests(unittest.TestCase):
@@ -31,7 +31,7 @@ class ConfigTests(unittest.TestCase):
             self.assertIsNone(config.analysis.llm_api_key)
             self.assertIsNone(config.analysis.llm_api_key_env)
             self.assertIsNone(config.analysis.llm_base_url)
-            self.assertEqual(config.outputs.reports_dir, root / ".ai-review" / "reports")
+            self.assertEqual(config.outputs.reports_dir, root / ".recodex" / "reports")
             self.assertEqual(config.outputs.agents_md, root / "AGENTS.md")
             self.assertEqual(config.outputs.skills_dir, root / ".agents" / "skills")
             self.assertEqual(config.outputs.checklists_dir, root / "docs" / "ai-checklists")
@@ -42,8 +42,8 @@ class ConfigTests(unittest.TestCase):
             root = Path(temp) / "project"
             home = Path(temp) / "home"
             root.mkdir()
-            (home / ".ai-review").mkdir(parents=True)
-            (home / ".ai-review" / "config.toml").write_text(
+            (home / ".recodex").mkdir(parents=True)
+            (home / ".recodex" / "config.toml").write_text(
                 "\n".join(
                     [
                         "[sources.codex]",
@@ -55,12 +55,12 @@ class ConfigTests(unittest.TestCase):
                         "[analysis]",
                         "local_only = true",
                         'llm_provider = "mock"',
-                        'llm_api_key_env = "AI_REVIEW_TEST_KEY"',
+                        'llm_api_key_env = "RECODEX_TEST_KEY"',
                     ]
                 ),
                 encoding="utf-8",
             )
-            (root / ".ai-review.toml").write_text(
+            (root / ".recodex.toml").write_text(
                 "\n".join(
                     [
                         "[sources.codex]",
@@ -93,7 +93,7 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(config.analysis.llm_provider, "volcengine")
             self.assertEqual(config.analysis.llm_model, "gpt-test")
             self.assertEqual(config.analysis.llm_api_key, "ark-test-key")
-            self.assertEqual(config.analysis.llm_api_key_env, "AI_REVIEW_TEST_KEY")
+            self.assertEqual(config.analysis.llm_api_key_env, "RECODEX_TEST_KEY")
             self.assertEqual(config.analysis.llm_base_url, "https://ark.example.com/api/v3")
             self.assertEqual(config.outputs.reports_dir, root / "review-reports")
 

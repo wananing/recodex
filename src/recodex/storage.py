@@ -64,7 +64,7 @@ def storage_roots(values: list[str] | None) -> list[Path]:
 def storage_archive_dir(value: str | None) -> Path:
     if value:
         return Path(value).expanduser().resolve()
-    return (Path.home() / ".ai-dev-review" / "archive" / "codex").resolve()
+    return (Path.home() / ".recodex" / "archive" / "codex").resolve()
 
 
 def discover_storage_files(roots: list[Path]) -> list[Path]:

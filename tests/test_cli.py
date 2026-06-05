@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ai_dev_review.cli import main
+from recodex.cli import main
 
 
 class CliSmokeTests(unittest.TestCase):
@@ -113,9 +113,9 @@ class CliSmokeTests(unittest.TestCase):
             self.assertTrue((reports / "patterns-3650d.md").exists())
             self.assertTrue((reports / "improvements.md").exists())
             self.assertTrue((exports / "AGENTS.patch.md").exists())
-            self.assertTrue((exports / "skills" / "ai-dev-review-retro" / "SKILL.md").exists())
-            self.assertTrue((exports / "checklists" / "ai-review-retro.md").exists())
-            self.assertTrue((exports / "scripts" / "ai-review-weekly.sh").exists())
+            self.assertTrue((exports / "skills" / "recodex-retro" / "SKILL.md").exists())
+            self.assertTrue((exports / "checklists" / "recodex-retro.md").exists())
+            self.assertTrue((exports / "scripts" / "recodex-weekly.sh").exists())
 
 
 if __name__ == "__main__":

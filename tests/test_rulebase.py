@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import unittest
 
-from ai_dev_review.analysis import propose_improvements
-from ai_dev_review.models import SessionRecord, TranscriptEvent
-from ai_dev_review.reports import render_retro
-from ai_dev_review.rulebase import evaluate_session_rules, get_rule, list_rules
+from recodex.analysis import propose_improvements
+from recodex.models import SessionRecord, TranscriptEvent
+from recodex.reports import render_retro
+from recodex.rulebase import evaluate_session_rules, get_rule, list_rules
 
 
 class RulebaseTests(unittest.TestCase):

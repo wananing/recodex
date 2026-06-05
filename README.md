@@ -1,575 +1,248 @@
-# ai-dev-review
+# recodex
 
 [English](README.en.md) | 中文
 
-> 复盘你的 AI 编程会话，找出下一次更高效使用 Codex / Claude Code / Cursor 的具体改进点。
+> 复盘最近一次 Codex 会话，看看下一次哪里可以用得更好。
 
-`ai-dev-review` 是一个本地优先的 AI 开发复盘 CLI。它读取本地 AI 编程会话记录，结构化分析会话过程，并默认生成静态 HTML 报告和可 review 的工作流改进候选。
+`recodex` 是一个本地优先 CLI。它读取本地 Codex session transcript，分析你这次是怎么使用 Codex 的，并默认打开一份本地静态 HTML 报告。
 
-第一数据源是 Codex session transcripts。第一默认输出是本地 `report.html`。
-
-![ai-dev-review generated hero](docs/assets/ai-dev-review-hero.png)
-
-它重点分析：
+它帮助你发现：
 
 - 哪些上下文给得太晚
-- 任务边界是否过大或发生漂移
-- 过程中是否应该更早暂停、纠偏或拆分任务
-- 收尾是否缺少测试、构建、typecheck、lint 或手动验证证据
-- 哪些信息应该沉淀到 `AGENTS.md`、checklist、script、hook、CI 或 skill
+- 任务边界在哪里发生了漂移
+- 哪些时刻更早暂停、纠偏或拆分会更好
+- 收尾是否缺少验证证据
+- 哪些项目事实应该在下一次会话前写入文档
 
-它不是聊天记录查看器，不是 prompt 改写器，也不是泛泛的 AI 总结工具。
+它不是 transcript viewer，不是 prompt optimizer，也不是泛用 AI 总结器。
 
-![ai-dev-review overview](docs/assets/readme-overview.svg)
+它复盘的是一次 Codex session 周围的使用流程。
+
+```bash
+recodex
+```
+
+```text
+[ok] Found latest Codex session
+[ok] Quick analysis completed
+[ok] Generated report.html
+[ok] Opened report in browser
+
+Key findings:
+- 关键上下文补充偏晚
+- 任务边界略有漂移
+- 收尾缺少验证证据
+```
+
+![recodex HTML report](docs/assets/report-page-screenshot.png)
 
 ---
 
-## Demo
-
-直接运行默认流程：
-
-```bash
-ai-review
-```
-
-默认行为：
-
-```text
-Found recent Codex sessions
-Grouped sessions by project
-Generated retrospectives
-Generated project report.json and report.html
-Proposed improvement candidates
-Exported AGENTS/checklist/script/skill/CI artifacts
-```
-
-![Quickstart flow](docs/assets/quickstart-flow.svg)
-
-示例输出：
-
-```text
-Quickstart scanned 2 session(s) from the last 7d.
-
-Projects:
-Project: /path/to/project
-  Reports: .ai-review/reports/projects/project-1234abcd
-  Report JSON: .ai-review/reports/projects/project-1234abcd/report.json
-  Report HTML: .ai-review/reports/projects/project-1234abcd/report.html
-  Exports: .ai-review/exports/quickstart/projects/project-1234abcd
-```
-
-真实报告截图：
-
-![Generated HTML report screenshot](docs/assets/report-page-screenshot.png)
-
-生成最新会话报告：
-
-```bash
-ai-review report latest
-```
-
-生成并打开 HTML 报告：
-
-```bash
-ai-review report latest --open
-```
-
----
-
-## 为什么做这个
+## 为什么
 
 用好 Codex 不只是模型能力问题。
 
-一次混乱的 AI 编程会话，常见原因是 workflow 出了问题：
+一次混乱的 AI 编程会话，通常不是因为“AI 不够聪明”，而是流程闭环不稳：
 
 - 任务开始时上下文不够
-- 重要项目规则出现太晚
-- 同一个 session 混入调试、重构、部署和文档
-- AI 沿错误方向继续探索
-- 最终回答说完成，但没有验证证据
-- 同一个项目事实被用户重复解释
+- 关键项目事实出现太晚
+- 调试、重构、部署、文档混在同一个 session
+- AI 在错误方向上继续探索
+- 最终回答说完成，但没有测试、构建、typecheck、lint 或手动验证证据
+- 用户反复解释同一个项目事实
 
-`ai-dev-review` 把真实 AI 编程会话转成可执行的使用反馈。
+`recodex` 的目标很窄：从真实 Codex 会话里提炼下一次更高效使用 AI coding agent 的具体改进点。
 
-核心目标：
+---
 
-> 从自己的 AI 编程会话里，学会下一次怎么更好地使用 AI coding agent。
+## 分析什么
+
+`recodex` 关注五件事：
+
+- **任务启动**：目标、上下文、约束、完成条件是否清楚
+- **上下文时机**：哪些信息出现太晚，是否导致无效探索
+- **过程干预**：什么时候应该暂停、总结假设、纠偏或拆分 session
+- **验证和验收**：是否有可审查的验证命令和结果
+- **可复用改进**：哪些事实、流程、命令可以沉淀到文档、checklist、script、hook、CI 或 skill
 
 ---
 
 ## 会生成什么
 
-默认 quickstart 会按项目写报告和改进资产。
+默认生成本地静态报告：
 
-### HTML 报告
+```text
+.recodex/reports/<session-id>/
+  report.html
+  report.json
+  report.md
+```
 
-`report.html` 是用户看的静态报告。它是一个单文件 HTML，并把结构化 JSON 嵌入页面内部：
+`report.html` 是单文件 HTML。结构化 JSON 会嵌入页面内部：
 
 ```html
 <script id="report-data" type="application/json">...</script>
 ```
 
-页面不扫描 Codex session，也不在运行时 fetch 外部 JSON。CLI 先完成解析和分析，再渲染页面。
+页面不扫描 Codex session，也不运行时 fetch 外部 JSON。CLI 先解析和分析，再渲染页面。
+
+报告包含：
+
+1. 概览
+2. 流程路径
+3. 主要问题
+4. 上下文前置分析
+5. 过程干预分析
+6. 验证和验收
+7. 可执行建议
+8. 证据附录
 
 ![Report anatomy](docs/assets/report-anatomy.svg)
-
-### 结构化 JSON
-
-`report.json` 是页面的标准数据源，包含：
-
-- `meta`
-- `summary`
-- `metrics`
-- `flow`
-- `issues`
-- `context_frontload`
-- `intervention`
-- `verification`
-- `suggestions`
-- `artifacts`
-- `evidence`
-
-### 改进候选
-
-工具会生成可 review 的改进候选，例如：
-
-- 更新 `AGENTS.md`
-- 增加完成前 checklist
-- 把重复命令转成脚本
-- 建议 hook 或 CI 检查
-- 生成可复用 skill
-
-所有改进候选都应先人工确认，再应用或导出。
-
-![Improvement loop](docs/assets/improvement-loop.svg)
-
----
-
-## 它不是什么
-
-`ai-dev-review` 不是：
-
-- 完整 Codex transcript viewer
-- prompt rewriting assistant
-- 面向用户的规则库管理系统
-- 泛用聊天总结器
-- 测试或 code review 的替代品
-- 判断最终代码是否正确的工具
-
-它分析的是 AI 编程会话周围的 **使用过程**。
-
----
-
-## 安装
-
-从源码运行：
-
-```bash
-git clone git@github.com:wananing/ai-review.git
-cd ai-review
-uv sync
-uv run ai-review
-```
-
-不安装直接运行：
-
-```bash
-PYTHONPATH=src python3 -m ai_dev_review
-```
-
-通过 `uv` 使用 console command：
-
-```bash
-uv run ai-review
-```
 
 ---
 
 ## 快速开始
 
-分析最近几个 Codex 会话并生成项目报告：
+从源码运行：
 
 ```bash
-ai-review
+git clone <repo-url>
+cd recodex
+uv sync
+uv run recodex
 ```
 
-限制扫描窗口：
+常用方式：
 
 ```bash
-ai-review --since 7d --limit 5
+recodex              # 分析 latest session 并打开 HTML 报告
+recodex --no-open    # 生成报告但不打开浏览器
+recodex --terminal   # 保持浏览器关闭，只看终端摘要
+recodex --json       # 只生成 report.json
 ```
 
-生成单次会话 HTML 报告：
+显式 latest：
 
 ```bash
-ai-review report latest
-```
-
-生成并打开单次会话 HTML 报告：
-
-```bash
-ai-review report latest --open
-```
-
-本地确定性分析：
-
-```bash
-ai-review retro latest --local-only
-```
-
-使用 mock provider 测试 LLM 分析链路：
-
-```bash
-ai-review retro latest --llm --llm-provider mock
+recodex latest
+recodex latest --since 30d
 ```
 
 ---
 
-## 核心命令
+## 命令
 
-### `ai-review`
-
-默认 quickstart 流程。它读取最近一个小窗口，按项目聚合会话，生成 HTML 报告，提出改进候选，并导出工作流资产。
+常用命令：
 
 ```bash
-ai-review
+recodex              # 分析最新 session 并打开 HTML 报告
+recodex latest       # 显式 latest-session 分析
+recodex open latest  # 重新打开最近生成的报告
+recodex history      # 汇总最近会话里的重复模式
+recodex doctor       # 检查 Codex session 目录和 recodex 状态
 ```
 
-默认输出：
-
-```text
-.ai-review/reports/quickstart-index.md
-.ai-review/reports/projects/<project>/
-  report.json
-  report.html
-  retro-*.md
-  retro-*.json
-  retro-*.html
-  patterns-7d.md
-  improvements.md
-.ai-review/exports/quickstart/projects/<project>/
-  AGENTS.patch.md
-  skills/ai-dev-review-retro/SKILL.md
-  checklists/ai-review-checklist.md
-  scripts/ai-review-verify.sh
-  ci/verify.yml
-```
-
-### `ai-review init`
-
-先 catalog Codex transcript 元数据，不立即完整读取所有 session。适合 `~/.codex/sessions` 很大的场景。
+高级命令：
 
 ```bash
-ai-review init
-ai-review init --select 1 --process-limit 20
+recodex scan ~/.codex/sessions
+recodex report latest --open
+recodex retro latest --local-only
+recodex quickstart --since 7d --limit 5
+recodex history --since 30d
+recodex export agents
+recodex export checklist
+recodex storage stats
 ```
 
-### `ai-review scan`
-
-把 transcript 文件解析进本地 SQLite。
-
-```bash
-ai-review scan ~/.codex/sessions
-ai-review import ./some-session.jsonl
-```
-
-### `ai-review report latest`
-
-为一个已索引 session 生成静态 HTML 报告。
-
-```bash
-ai-review report latest
-ai-review report latest --open
-```
-
-同时会写出匹配的 `retro-*.json` 和 `retro-*.md`。
-
-### `ai-review retro`
-
-生成 Markdown retrospective，并默认生成匹配的 JSON / HTML 文件。
-
-```bash
-ai-review retro latest
-ai-review retro --since 7d
-```
-
-可选 LLM 分析：
-
-```bash
-ai-review retro latest --llm --llm-provider mock
-ai-review retro latest --llm --allow-cloud
-```
-
-### `ai-review patterns --since 30d`
-
-汇总最近会话里的重复模式。
-
-```bash
-ai-review patterns --since 30d
-```
-
-典型主题：
-
-- 多次会话缺少验证证据
-- 项目上下文出现太晚
-- sandbox / permission 摩擦重复出现
-- 命令失败重复出现
-- 用户重复纠正同类问题
-
-### `ai-review improvements`
-
-生成和 review 改进候选。
-
-```bash
-ai-review improvements propose --since 30d
-ai-review improvements list
-ai-review improvements show <id>
-ai-review improvements accept <id>
-ai-review improvements reject <id>
-ai-review improvements apply <id>
-```
-
-### `ai-review export`
-
-导出 workflow artifact。
-
-```bash
-ai-review export agents
-ai-review export skills
-ai-review export checklist
-ai-review export scripts
-ai-review export ci
-```
-
-### `ai-review storage`
-
-检查和管理大型 Codex session 存储。
-
-```bash
-ai-review storage stats
-ai-review storage top --limit 50
-ai-review storage index --incremental
-ai-review storage archive --older-than 30d --dry-run
-ai-review storage archive --older-than 30d
-ai-review storage restore <session-id>
-ai-review storage vacuum
-```
-
-![Storage manager](docs/assets/storage-manager.svg)
-
-归档命令会把旧 JSONL 移出 Codex 热路径，而不是删除它们。
+`quickstart` 是显式多会话流程：它会按项目聚合最近会话，生成项目报告和改进资产。它不是默认入口。
 
 ---
 
-## 报告输出
+## 可执行建议
 
-默认报告目录：
+`recodex` 可能建议后续动作，例如：
 
-```text
-.ai-review/reports/
-```
+- 把项目命令写入 `AGENTS.md`
+- 增加完成前 checklist
+- 把重复命令转成脚本
+- 增加 hook 或 CI 检查
+- 为重复流程创建 skill
 
-项目级 quickstart 输出：
-
-```text
-.ai-review/reports/projects/<project>/
-  report.html
-  report.json
-  retro-*.md
-  retro-*.json
-  retro-*.html
-  patterns-7d.md
-  improvements.md
-```
-
-单次会话输出：
-
-```text
-.ai-review/reports/
-  retro-<title>-<session>.md
-  retro-<title>-<session>.json
-  retro-<title>-<session>.html
-```
-
-文件说明：
-
-- `report.html`：用户看的静态 HTML 报告
-- `report.json`：结构化分析数据
-- `retro-*.md`：Markdown retrospective
-- `improvements.md`：可 review 的改进候选
-- `patterns-*.md`：跨会话模式摘要
+建议不会自动应用。先 review，再落地。
 
 ---
 
-## 数据流
+## 可选本地报告服务
 
-![ai-dev-review data flow](docs/assets/data-flow.svg)
+默认情况下，`recodex` 生成自包含的 `report.html` 并用浏览器打开，不需要后台服务。
 
-```text
-Codex session transcript
-  ↓
-Local parser
-  ↓
-Fact extraction
-  ↓
-Rulebase-guided analysis
-  ↓
-LLM-assisted diagnosis, optional
-  ↓
-report.json
-  ↓
-HTML renderer
-  ↓
-report.html
-```
+本地 report server 适合以后浏览多份报告、搜索历史报告、查看周报和趋势。这个能力是可选增强，不是默认入口。
 
-HTML 页面只展示 CLI 生成的结构化分析结果。
-
----
-
-## 分析关注点
-
-`ai-dev-review` 分析五个使用维度。
-
-### 1. 任务启动
-
-- 初始任务是否足够清楚？
-- 任务是否太大？
-- 约束是否缺失？
-- 完成条件是否不明确？
-
-### 2. 上下文时机
-
-- 哪些重要事实出现太晚？
-- 用户是否中途纠正项目路径或命令？
-- 稳定上下文是否应该写进 `AGENTS.md`？
-
-### 3. 过程干预
-
-- AI 是否在多次失败后仍继续沿同一方向尝试？
-- 是否应该更早暂停并重设假设？
-- 会话是否漂移到无关工作？
-
-### 4. 验证和验收
-
-- 是否有 test / build / typecheck / lint / manual verification？
-- 最终回答是否包含命令结果？
-- 是否在没有证据时接受“完成”？
-
-### 5. 可复用改进
-
-- 项目命令是否应该被文档化？
-- 是否应该创建 checklist？
-- 重复命令是否应该脚本化？
-- 重复验证缺口是否应该升级为 hook 或 CI？
-
----
-
-## 示例 Finding
-
-```text
-Problem:
-关键上下文补充偏晚
-
-Observation:
-测试命令和主要代码目录是在会话中段才出现的，AI 前期产生了不必要的探索。
-
-Impact:
-这会增加轮次、token 消耗和方向偏差风险。
-
-Suggestion:
-把稳定的项目上下文提前放入项目说明，例如测试命令、主要目录和禁止修改范围。
-```
-
----
-
-## 可选 LLM 分析
-
-LLM 分析是 opt-in。默认情况下，`ai-review` 只使用本地确定性解析、规则经验库匹配和启发式建议。
-
-![LLM providers](docs/assets/llm-providers.svg)
-
-### OpenAI
+计划命令：
 
 ```bash
-export OPENAI_API_KEY=...
-ai-review retro latest --llm --allow-cloud
-```
-
-### 火山方舟 / 豆包
-
-```bash
-export ARK_API_KEY=...
-ai-review retro latest --llm --llm-provider volcengine --allow-cloud
-```
-
-或写入 `~/.ai-review/config.toml`：
-
-```toml
-[analysis]
-local_only = false
-llm_provider = "volcengine"
-# Optional. Defaults to doubao-seed-2-0-lite-260215.
-# llm_model = "doubao-seed-2-0-lite-260215"
-```
-
-然后只需要配置一个 key：
-
-```bash
-export ARK_API_KEY=...
-ai-review retro latest --llm
-```
-
-火山 provider 默认使用：
-
-```text
-https://ark.cn-beijing.volces.com/api/v3
+recodex serve
 ```
 
 ---
 
 ## 隐私
 
-`ai-dev-review` 是本地优先设计。
+`recodex` 是本地优先设计：
 
-默认行为：
-
-- 只读本地 Codex transcripts
+- 只读本地 Codex transcript
 - 不修改原始 Codex session 文件
-- 报告存储在本地
-- 可选 LLM 分析前先脱敏
-- `analysis.local_only = true` 时阻止云端 LLM 调用
-- 支持 `--local-only`
+- 默认把报告写到本地 `.recodex`
+- LLM 分析默认关闭
+- 可选 LLM 分析前会先脱敏
+- 支持本地确定性分析
 
-脱敏范围包括：
+脱敏范围包括 API keys、tokens、`.env` 内容、database URLs、cookies、private keys、Authorization headers、home path 和 emails。
 
-- API keys
-- tokens
-- `.env` 内容
-- database URLs
-- cookies
-- private keys
-- authorization headers
-- home directory paths
-- emails
+---
 
-本地模式：
+## 可选 LLM 分析
+
+LLM 是 opt-in。默认路径是本地确定性解析、规则经验库匹配和启发式建议。
+
+测试 LLM 链路：
 
 ```bash
-ai-review retro latest --local-only
+recodex retro latest --llm --llm-provider mock
+```
+
+OpenAI：
+
+```bash
+export OPENAI_API_KEY=...
+recodex retro latest --llm --allow-cloud
+```
+
+火山方舟 / 豆包：
+
+```bash
+export ARK_API_KEY=...
+recodex retro latest --llm --llm-provider volcengine --allow-cloud
+```
+
+或写入 `~/.recodex/config.toml`：
+
+```toml
+[analysis]
+local_only = false
+llm_provider = "volcengine"
+llm_api_key_env = "ARK_API_KEY"
+# llm_model = "doubao-seed-2-0-lite-260215"
 ```
 
 ---
 
 ## 配置
 
-项目配置：`.ai-review.toml`
+项目配置：`.recodex.toml`
 
 ```toml
-[project]
-name = "my-project"
-root = "."
-
 [sources.codex]
 enabled = true
 sessions_dir = "~/.codex/sessions"
@@ -581,94 +254,39 @@ redact_home_path = true
 
 [analysis]
 local_only = true
-max_session_tokens = 80000
-# llm_provider = "volcengine"
-# llm_model = "doubao-seed-2-0-lite-260215"
-# llm_api_key_env = "ARK_API_KEY"
 
 [outputs]
-reports_dir = "./.ai-review/reports"
-agents_md = "./AGENTS.md"
-skills_dir = "./.agents/skills"
-checklists_dir = "./docs/ai-checklists"
-scripts_dir = "./scripts/ai"
+reports_dir = "./.recodex/reports"
 ```
 
-全局配置：`~/.ai-review/config.toml`
-
-```toml
-[analysis]
-local_only = false
-llm_provider = "volcengine"
-llm_api_key_env = "ARK_API_KEY"
-```
-
----
-
-## 规则经验库
-
-`ai-dev-review` 使用内置规则经验库作为复盘和改进建议的内部判断层。
-
-它不是独立的用户规则管理命令。报告也不会单独展示“命中规则”。规则经验库只在内部用于保证分析稳定、可追溯、证据驱动。
-
-覆盖范围包括：
-
-- prompt quality
-- task planning
-- bugfix workflow
-- verification
-- context management
-- tool usage
-- user correction
-- project memory
-- automation
-- safety
-- reviewability
-- productivity metrics
+全局配置：`~/.recodex/config.toml`
 
 ---
 
 ## Roadmap
 
-### v0.1 Codex Local Review
+当前聚焦：
 
-- [x] 读取本地 Codex sessions
-- [x] SQLite 索引
-- [x] CLI scan/list/search
-- [x] Markdown retrospective reports
+- [x] 分析 latest Codex session
+- [x] 生成单文件 HTML 报告
+- [x] 检测上下文补充偏晚
+- [x] 检测验证证据缺失
+- [x] 生成 Top 建议和证据附录
 
-### v0.2 HTML Reports
+下一步：
 
-- [x] 生成 `report.json`
-- [x] 渲染静态 `report.html`
-- [x] 单文件 HTML 内嵌 JSON
-- [x] 默认生成 HTML
+- [ ] 更好的 evidence appendix
+- [ ] `recodex open` 历史报告选择
+- [ ] `recodex doctor` 大 session 目录诊断
+- [ ] AGENTS.md suggestion snippets
+- [ ] checklist suggestions
+- [ ] 可选本地 report server
 
-### v0.3 Improvement Engine
+更后面：
 
-- [x] 跨会话 pattern report
-- [x] improvement candidates
-- [x] review queue
-- [x] AGENTS/checklist/script/skill/CI exporters
-
-### v0.4 Storage Manager
-
-- [x] 增量 raw session index
-- [x] storage stats 和 largest files
-- [x] archive / restore old Codex sessions
-- [x] hot/warm/cold storage direction
-
-### v0.5 LLM Gateway
-
-- [x] Mock provider for tests
-- [x] OpenAI provider
-- [x] Volcengine Ark / Doubao provider
-- [x] Structured JSON output validation
-- [ ] Batch analysis
-- [ ] Eval suite
-
-### v0.6 Cross-Agent
-
+- [ ] deep analysis mode
+- [ ] batch analysis
+- [ ] eval suite
 - [ ] Claude Code adapter
 - [ ] Cursor adapter
 - [ ] Git / GitHub adapter
@@ -680,59 +298,24 @@ llm_api_key_env = "ARK_API_KEY"
 
 ### 这是 prompt optimizer 吗？
 
-不是。它可能会发现某些信息应该更早给到 AI，但产品中心不是改写 prompt。
+不是。它可能发现某些信息应该更早给到 Codex，但核心不是改写 prompt。
 
-它关注的是完整 AI 编程使用过程：上下文、任务边界、过程干预、验证和可复用改进。
+它复盘的是使用流程：上下文、任务边界、干预时机、验证闭环和可复用改进。
 
 ### 它会判断最终代码是否正确吗？
 
 不会。它检查的是 session 是否产生了足够的验证证据。
 
-如果 AI 改了代码但没有运行测试、构建、typecheck、lint 或手动验证，报告会降低完成可信度。
+如果 AI 改了代码但没有测试、构建、typecheck、lint 或手动验证，报告会降低完成可信度。
 
-### 它会上传 Codex sessions 吗？
+### 它会上传我的 Codex sessions 吗？
 
 默认不会。
 
 默认路径是本地确定性分析。启用 LLM 分析时，工具发送的是脱敏后的紧凑分析包，而不是完整原始 transcript。
-
-### 它会替代 `AGENTS.md` 或 skills 吗？
-
-不会。
-
-它可能建议把什么写进 `AGENTS.md`、checklist、script、hook、CI 或 skill，但每个改进都应该先 review。
 
 ### 为什么默认生成 HTML？
 
 终端适合快速摘要，但不适合阅读结构化复盘。
 
 HTML 更适合浏览、保存、分享、打印，也适合附到 issue 或笔记里。
-
----
-
-## 开发
-
-运行测试：
-
-```bash
-PYTHONPATH=src python3 -m unittest discover -s tests
-python3 -m py_compile src/ai_dev_review/*.py
-```
-
-从源码运行：
-
-```bash
-PYTHONPATH=src python3 -m ai_dev_review
-```
-
-通过 `uv` 运行：
-
-```bash
-uv run ai-review
-```
-
----
-
-## License
-
-MIT

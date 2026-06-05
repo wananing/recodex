@@ -1,78 +1,40 @@
-# ai-dev-review
+# recodex
 
 English | [中文](README.md)
 
-> Review your AI coding sessions and identify concrete ways to use Codex, Claude Code, and Cursor better next time.
+> Review your latest Codex session and see what to improve next time.
 
-`ai-dev-review` is a local-first CLI for AI coding retrospectives. It reads local AI coding session transcripts, analyzes how the session was used, and generates static reports plus reviewable workflow improvement candidates.
+`recodex` is a local-first CLI that reads your local Codex session transcripts, analyzes how you used Codex, and opens a static HTML report by default.
 
-The first supported data source is Codex session transcripts. The first default output is a local `report.html`.
+It helps you find:
 
-![ai-dev-review generated hero](docs/assets/ai-dev-review-hero.png)
+- context that arrived too late
+- task boundaries that drifted
+- moments where earlier intervention would help
+- missing verification evidence
+- project facts that should be documented before the next session
 
-It focuses on:
+It is not a transcript viewer, not a prompt optimizer, and not a generic AI summary tool.
 
-- which context arrived too late
-- whether the task boundary was too large or drifted
-- whether the user should have paused, corrected direction, or split the task earlier
-- whether the session ended without test, build, typecheck, lint, or manual verification evidence
-- which facts should become `AGENTS.md`, checklists, scripts, hooks, CI rules, or skills
-
-It is not a chat viewer, not a prompt rewriting tool, and not a generic AI summary tool.
-
-![ai-dev-review overview](docs/assets/readme-overview.svg)
-
----
-
-## Demo
-
-Run the default flow:
+It reviews the usage process around a Codex session.
 
 ```bash
-ai-review
+recodex
 ```
-
-Default behavior:
 
 ```text
-Found recent Codex sessions
-Grouped sessions by project
-Generated retrospectives
-Generated project report.json and report.html
-Proposed improvement candidates
-Exported AGENTS/checklist/script/skill/CI artifacts
+[ok] Found latest Codex session
+[ok] Quick analysis completed
+[ok] Generated report.html
+[ok] Opened report in browser
+
+Key findings:
+- Key context arrived too late
+- The task boundary drifted slightly
+- The session ended without verification evidence
 ```
 
-![Quickstart flow](docs/assets/quickstart-flow.svg)
-
-Example output:
-
-```text
-Quickstart scanned 2 session(s) from the last 7d.
-
-Projects:
-Project: /path/to/project
-  Reports: .ai-review/reports/projects/project-1234abcd
-  Report JSON: .ai-review/reports/projects/project-1234abcd/report.json
-  Report HTML: .ai-review/reports/projects/project-1234abcd/report.html
-  Exports: .ai-review/exports/quickstart/projects/project-1234abcd
-```
-
-Generated report screenshot:
-
-![Generated HTML report screenshot](docs/assets/report-page-screenshot.png)
-
-Generate a report for the latest indexed session:
-
-```bash
-ai-review report latest
-```
-
-Generate and open the HTML report:
-
-```bash
-ai-review report latest --open
-```
+![recodex HTML report](docs/assets/report-page-screenshot.png)
 
 ---
 
@@ -80,478 +42,207 @@ ai-review report latest --open
 
 Using Codex well is not only about model quality.
 
-A messy AI coding session often comes from workflow issues:
+A messy AI coding session is often a workflow problem:
 
-- The task starts without enough context.
-- Important project rules appear too late.
-- One session mixes debugging, refactoring, deployment, and docs.
-- The agent keeps exploring the wrong path.
-- The final response says "done" without verification evidence.
-- The same project facts are explained again and again.
+- the task starts without enough context
+- important project facts appear too late
+- debugging, refactoring, deployment, and docs are mixed into one session
+- the agent keeps exploring the wrong path
+- the final answer says "done" without tests, build, typecheck, lint, or manual verification evidence
+- the user explains the same project fact again and again
 
-`ai-dev-review` turns real AI coding sessions into actionable usage feedback.
+`recodex` has a narrow goal: turn real Codex sessions into concrete feedback for using AI coding agents better next time.
 
-The goal is simple:
+---
 
-> Learn how to use AI coding agents better from your own sessions.
+## What It Analyzes
+
+`recodex` focuses on five usage dimensions:
+
+- **Task start**: goal, context, constraints, and done condition
+- **Context timing**: which facts arrived too late and caused wasted exploration
+- **Intervention**: when the user should pause, reset assumptions, or split the session
+- **Verification and acceptance**: whether the final result has reviewable evidence
+- **Reusable improvements**: which facts, workflows, or commands should become docs, checklists, scripts, hooks, CI, or skills
 
 ---
 
 ## What It Generates
 
-The default quickstart flow writes project-level reports and artifacts.
+By default, recodex generates a local static report:
 
-### HTML Report
+```text
+.recodex/reports/<session-id>/
+  report.html
+  report.json
+  report.md
+```
 
-`report.html` is the user-facing static report. It is a self-contained HTML file with structured JSON embedded inside:
+`report.html` is a self-contained HTML file. Structured JSON is embedded inside the page:
 
 ```html
 <script id="report-data" type="application/json">...</script>
 ```
 
-The page does not scan Codex sessions and does not fetch an external JSON file at runtime. The CLI performs parsing and analysis first, then renders the page.
+The page does not scan Codex sessions and does not fetch external JSON at runtime. The CLI parses and analyzes first, then renders the page.
+
+The report includes:
+
+1. Overview
+2. Flow timeline
+3. Main issues
+4. Context frontload analysis
+5. Intervention analysis
+6. Verification and acceptance
+7. Actionable suggestions
+8. Evidence appendix
 
 ![Report anatomy](docs/assets/report-anatomy.svg)
-
-### Structured JSON
-
-`report.json` is the standard structured data source for the page. It contains:
-
-- `meta`
-- `summary`
-- `metrics`
-- `flow`
-- `issues`
-- `context_frontload`
-- `intervention`
-- `verification`
-- `suggestions`
-- `artifacts`
-- `evidence`
-
-### Improvement Candidates
-
-The tool proposes concrete workflow improvements, such as:
-
-- update `AGENTS.md`
-- add a completion checklist
-- turn repeated commands into scripts
-- suggest hook or CI checks
-- create reusable skills
-
-All improvement candidates should be reviewed before they are applied or exported.
-
-![Improvement loop](docs/assets/improvement-loop.svg)
-
----
-
-## What It Is Not
-
-`ai-dev-review` is not:
-
-- a full Codex transcript viewer
-- a prompt rewriting assistant
-- a user-facing rulebase management system
-- a generic chat summarizer
-- a replacement for tests or code review
-- a tool that judges whether the final code is correct
-
-It analyzes the **usage process** around an AI coding session.
-
----
-
-## Installation
-
-From source:
-
-```bash
-git clone git@github.com:wananing/ai-review.git
-cd ai-review
-uv sync
-uv run ai-review
-```
-
-Run without installing:
-
-```bash
-PYTHONPATH=src python3 -m ai_dev_review
-```
-
-Run through `uv`:
-
-```bash
-uv run ai-review
-```
 
 ---
 
 ## Quick Start
 
-Analyze recent Codex sessions and generate project reports:
+Run from source:
 
 ```bash
-ai-review
+git clone <repo-url>
+cd recodex
+uv sync
+uv run recodex
 ```
 
-Limit the scan window:
+Common usage:
 
 ```bash
-ai-review --since 7d --limit 5
+recodex              # analyze latest session and open the HTML report
+recodex --no-open    # generate the report without opening a browser
+recodex --terminal   # keep the browser closed and print the terminal summary
+recodex --json       # generate only report.json
 ```
 
-Generate a single-session HTML report:
+Explicit latest:
 
 ```bash
-ai-review report latest
-```
-
-Generate and open a single-session HTML report:
-
-```bash
-ai-review report latest --open
-```
-
-Run deterministic local analysis:
-
-```bash
-ai-review retro latest --local-only
-```
-
-Test the LLM analysis path with the mock provider:
-
-```bash
-ai-review retro latest --llm --llm-provider mock
+recodex latest
+recodex latest --since 30d
 ```
 
 ---
 
-## Core Commands
+## Commands
 
-### `ai-review`
-
-Default quickstart flow. It reads a small recent window, groups sessions by project, generates HTML reports, proposes improvements, and exports workflow artifacts.
+Common commands:
 
 ```bash
-ai-review
+recodex              # analyze latest session and open HTML report
+recodex latest       # explicit latest-session analysis
+recodex open latest  # reopen the latest generated report
+recodex history      # summarize repeated patterns across recent sessions
+recodex doctor       # inspect Codex session storage and recodex state
 ```
 
-Default outputs:
-
-```text
-.ai-review/reports/quickstart-index.md
-.ai-review/reports/projects/<project>/
-  report.json
-  report.html
-  retro-*.md
-  retro-*.json
-  retro-*.html
-  patterns-7d.md
-  improvements.md
-.ai-review/exports/quickstart/projects/<project>/
-  AGENTS.patch.md
-  skills/ai-dev-review-retro/SKILL.md
-  checklists/ai-review-checklist.md
-  scripts/ai-review-verify.sh
-  ci/verify.yml
-```
-
-### `ai-review init`
-
-Catalog Codex transcript metadata first, without fully reading every session. This is useful when `~/.codex/sessions` is large.
+Advanced commands:
 
 ```bash
-ai-review init
-ai-review init --select 1 --process-limit 20
+recodex scan ~/.codex/sessions
+recodex report latest --open
+recodex retro latest --local-only
+recodex quickstart --since 7d --limit 5
+recodex history --since 30d
+recodex export agents
+recodex export checklist
+recodex storage stats
 ```
 
-### `ai-review scan`
-
-Parse transcript files into local SQLite.
-
-```bash
-ai-review scan ~/.codex/sessions
-ai-review import ./some-session.jsonl
-```
-
-### `ai-review report latest`
-
-Generate a static HTML report for one indexed session.
-
-```bash
-ai-review report latest
-ai-review report latest --open
-```
-
-This also writes matching `retro-*.json` and `retro-*.md` files.
-
-### `ai-review retro`
-
-Generate Markdown retrospectives and matching JSON / HTML files.
-
-```bash
-ai-review retro latest
-ai-review retro --since 7d
-```
-
-Optional LLM analysis:
-
-```bash
-ai-review retro latest --llm --llm-provider mock
-ai-review retro latest --llm --allow-cloud
-```
-
-### `ai-review patterns --since 30d`
-
-Summarize repeated patterns across recent sessions.
-
-```bash
-ai-review patterns --since 30d
-```
-
-Typical themes:
-
-- sessions ended without verification evidence
-- project context appeared late
-- repeated sandbox or permission friction
-- repeated command failures
-- repeated user corrections
-
-### `ai-review improvements`
-
-Generate and review improvement candidates.
-
-```bash
-ai-review improvements propose --since 30d
-ai-review improvements list
-ai-review improvements show <id>
-ai-review improvements accept <id>
-ai-review improvements reject <id>
-ai-review improvements apply <id>
-```
-
-### `ai-review export`
-
-Export workflow artifacts.
-
-```bash
-ai-review export agents
-ai-review export skills
-ai-review export checklist
-ai-review export scripts
-ai-review export ci
-```
-
-### `ai-review storage`
-
-Inspect and manage large Codex session storage.
-
-```bash
-ai-review storage stats
-ai-review storage top --limit 50
-ai-review storage index --incremental
-ai-review storage archive --older-than 30d --dry-run
-ai-review storage archive --older-than 30d
-ai-review storage restore <session-id>
-ai-review storage vacuum
-```
-
-![Storage manager](docs/assets/storage-manager.svg)
-
-Archive commands move old JSONL files out of the Codex hot path instead of deleting them.
+`quickstart` is the explicit multi-session flow. It groups recent sessions by project, generates project reports, and exports workflow artifacts. It is not the default entry point.
 
 ---
 
-## Report Output
+## Actionable Suggestions
 
-Default reports directory:
+`recodex` may suggest follow-up actions such as:
 
-```text
-.ai-review/reports/
-```
+- document project commands in `AGENTS.md`
+- add a completion checklist
+- script repeated commands
+- add a hook or CI check
+- create a reusable skill for repeated workflows
 
-Project quickstart output:
-
-```text
-.ai-review/reports/projects/<project>/
-  report.html
-  report.json
-  retro-*.md
-  retro-*.json
-  retro-*.html
-  patterns-7d.md
-  improvements.md
-```
-
-Single-session output:
-
-```text
-.ai-review/reports/
-  retro-<title>-<session>.md
-  retro-<title>-<session>.json
-  retro-<title>-<session>.html
-```
-
-Files:
-
-- `report.html`: user-facing static HTML report
-- `report.json`: structured analysis data
-- `retro-*.md`: Markdown retrospective
-- `improvements.md`: reviewable improvement candidates
-- `patterns-*.md`: cross-session pattern summary
+Suggestions are not applied automatically. Review them before applying.
 
 ---
 
-## Data Flow
+## Optional Local Report Server
 
-![ai-dev-review data flow](docs/assets/data-flow.svg)
+By default, `recodex` generates a self-contained `report.html` and opens it in your browser. It does not require a background service.
 
-```text
-Codex session transcript
-  ↓
-Local parser
-  ↓
-Fact extraction
-  ↓
-Rulebase-guided analysis
-  ↓
-LLM-assisted diagnosis, optional
-  ↓
-report.json
-  ↓
-HTML renderer
-  ↓
-report.html
-```
+A local report server is planned for browsing multiple reports, searching report history, and viewing weekly trends. This is an optional enhancement, not the default entry point.
 
-The HTML page only displays structured analysis generated by the CLI.
-
----
-
-## Analysis Focus
-
-`ai-dev-review` analyzes five usage dimensions.
-
-### 1. Task Setup
-
-- Was the initial task clear enough?
-- Was the task too large?
-- Were constraints missing?
-- Was the completion condition unclear?
-
-### 2. Context Timing
-
-- Which important facts appeared too late?
-- Did the user have to correct project paths or commands?
-- Should stable context move into `AGENTS.md`?
-
-### 3. Process Intervention
-
-- Did the agent continue after repeated failed attempts?
-- Should the user have paused and reset direction earlier?
-- Did the session drift into unrelated work?
-
-### 4. Verification & Acceptance
-
-- Was there test/build/typecheck/lint/manual verification?
-- Did the final response include command results?
-- Was completion accepted without evidence?
-
-### 5. Reusable Improvements
-
-- Should project commands be documented?
-- Should a checklist be created?
-- Should repeated commands become scripts?
-- Should repeated validation gaps become hooks or CI checks?
-
----
-
-## Optional LLM Analysis
-
-LLM analysis is opt-in. By default, `ai-review` uses local deterministic parsing, Rulebase matching, and heuristic recommendations only.
-
-![LLM providers](docs/assets/llm-providers.svg)
-
-### OpenAI
+Planned command:
 
 ```bash
-export OPENAI_API_KEY=...
-ai-review retro latest --llm --allow-cloud
-```
-
-### Volcengine Ark / Doubao
-
-```bash
-export ARK_API_KEY=...
-ai-review retro latest --llm --llm-provider volcengine --allow-cloud
-```
-
-Or configure `~/.ai-review/config.toml`:
-
-```toml
-[analysis]
-local_only = false
-llm_provider = "volcengine"
-# Optional. Defaults to doubao-seed-2-0-lite-260215.
-# llm_model = "doubao-seed-2-0-lite-260215"
-```
-
-Then one API key is enough:
-
-```bash
-export ARK_API_KEY=...
-ai-review retro latest --llm
-```
-
-The Volcengine provider defaults to:
-
-```text
-https://ark.cn-beijing.volces.com/api/v3
+recodex serve
 ```
 
 ---
 
 ## Privacy
 
-`ai-dev-review` is local-first by design.
-
-Default behavior:
+`recodex` is local-first:
 
 - reads local Codex transcripts as read-only
 - does not modify original Codex session files
-- stores reports locally
-- redacts sensitive content before optional LLM analysis
-- blocks cloud LLM calls while `analysis.local_only = true`
-- supports `--local-only`
+- writes reports under local `.recodex`
+- keeps LLM analysis disabled by default
+- redacts content before optional LLM analysis
+- supports deterministic local analysis
 
-Redaction covers:
+Redaction covers API keys, tokens, `.env` content, database URLs, cookies, private keys, Authorization headers, home paths, and emails.
 
-- API keys
-- tokens
-- `.env` content
-- database URLs
-- cookies
-- private keys
-- authorization headers
-- home directory paths
-- emails
+---
 
-Run locally:
+## Optional LLM Analysis
+
+LLM analysis is opt-in. The default path uses local deterministic parsing, Rulebase matching, and heuristic suggestions.
+
+Test the LLM path:
 
 ```bash
-ai-review retro latest --local-only
+recodex retro latest --llm --llm-provider mock
+```
+
+OpenAI:
+
+```bash
+export OPENAI_API_KEY=...
+recodex retro latest --llm --allow-cloud
+```
+
+Volcengine Ark / Doubao:
+
+```bash
+export ARK_API_KEY=...
+recodex retro latest --llm --llm-provider volcengine --allow-cloud
+```
+
+Or configure `~/.recodex/config.toml`:
+
+```toml
+[analysis]
+local_only = false
+llm_provider = "volcengine"
+llm_api_key_env = "ARK_API_KEY"
+# llm_model = "doubao-seed-2-0-lite-260215"
 ```
 
 ---
 
 ## Configuration
 
-Project config: `.ai-review.toml`
+Project config: `.recodex.toml`
 
 ```toml
-[project]
-name = "my-project"
-root = "."
-
 [sources.codex]
 enabled = true
 sessions_dir = "~/.codex/sessions"
@@ -563,81 +254,39 @@ redact_home_path = true
 
 [analysis]
 local_only = true
-max_session_tokens = 80000
-# llm_provider = "volcengine"
-# llm_model = "doubao-seed-2-0-lite-260215"
-# llm_api_key_env = "ARK_API_KEY"
 
 [outputs]
-reports_dir = "./.ai-review/reports"
-agents_md = "./AGENTS.md"
-skills_dir = "./.agents/skills"
-checklists_dir = "./docs/ai-checklists"
-scripts_dir = "./scripts/ai"
+reports_dir = "./.recodex/reports"
 ```
 
-Global config: `~/.ai-review/config.toml`
-
-```toml
-[analysis]
-local_only = false
-llm_provider = "volcengine"
-llm_api_key_env = "ARK_API_KEY"
-```
-
----
-
-## Rulebase
-
-`ai-dev-review` uses a built-in Rules & Experience Library as the internal judgment layer for retrospectives and improvement recommendations.
-
-It is not exposed as a separate user-facing rule management command. Reports do not show "rule hits" as a separate section. The Rulebase is used internally to keep analysis stable, traceable, and evidence-driven.
-
-Coverage includes prompt quality, task planning, bugfix workflow, verification, context management, tool usage, user correction, project memory, automation, safety, reviewability, and productivity metrics.
+Global config: `~/.recodex/config.toml`
 
 ---
 
 ## Roadmap
 
-### v0.1 Codex Local Review
+Current focus:
 
-- [x] Read local Codex sessions
-- [x] SQLite indexing
-- [x] CLI scan/list/search
-- [x] Markdown retrospective reports
+- [x] Analyze latest Codex session
+- [x] Generate self-contained HTML report
+- [x] Detect late context
+- [x] Detect missing verification evidence
+- [x] Generate top suggestions and evidence appendix
 
-### v0.2 HTML Reports
+Next:
 
-- [x] Generate `report.json`
-- [x] Render static `report.html`
-- [x] Embed JSON into single-file HTML
-- [x] Generate HTML by default
+- [ ] Better evidence appendix
+- [ ] `recodex open` report selection
+- [ ] `recodex doctor` for large session directories
+- [ ] AGENTS.md suggestion snippets
+- [ ] Checklist suggestions
+- [ ] Optional local report server
 
-### v0.3 Improvement Engine
+Later:
 
-- [x] Cross-session pattern report
-- [x] Improvement candidates
-- [x] Review queue
-- [x] AGENTS/checklist/script/skill/CI exporters
-
-### v0.4 Storage Manager
-
-- [x] Incremental raw session index
-- [x] Storage stats and largest files
-- [x] Archive / restore old Codex sessions
-- [x] Hot/warm/cold storage direction
-
-### v0.5 LLM Gateway
-
-- [x] Mock provider for tests
-- [x] OpenAI provider
-- [x] Volcengine Ark / Doubao provider
-- [x] Structured JSON output validation
+- [ ] Deep analysis mode
 - [ ] Batch analysis
 - [ ] Eval suite
-
-### v0.6 Cross-Agent
-
 - [ ] Claude Code adapter
 - [ ] Cursor adapter
 - [ ] Git / GitHub adapter
@@ -649,45 +298,24 @@ Coverage includes prompt quality, task planning, bugfix workflow, verification, 
 
 ### Is this a prompt optimizer?
 
-No. It may notice that some information should have appeared earlier, but the product is not centered on rewriting prompts.
+No. It may detect that some information should have appeared earlier, but the product is not centered on rewriting prompts.
+
+It reviews the usage process: context, task boundary, intervention timing, verification, and reusable improvements.
 
 ### Does it judge whether the final code is correct?
 
 No. It checks whether the session produced enough verification evidence.
 
+If the agent changed code but did not run tests, build, typecheck, lint, or manual verification, the report will lower completion confidence.
+
 ### Does it upload my Codex sessions?
 
-Not by default. The default path is local deterministic analysis. If LLM analysis is enabled, the tool sends a redacted compact analysis package rather than the full transcript.
+Not by default.
+
+The default path is local deterministic analysis. If LLM analysis is enabled, the tool sends a redacted, compact analysis package rather than the full raw transcript.
 
 ### Why generate HTML by default?
 
-Terminal output is good for a quick summary, but HTML is easier to scan, save, share, print, and attach to issues or notes.
+Terminal output is good for quick summaries, but not for reading structured retrospectives.
 
----
-
-## Development
-
-Run tests:
-
-```bash
-PYTHONPATH=src python3 -m unittest discover -s tests
-python3 -m py_compile src/ai_dev_review/*.py
-```
-
-Run from source:
-
-```bash
-PYTHONPATH=src python3 -m ai_dev_review
-```
-
-Run through `uv`:
-
-```bash
-uv run ai-review
-```
-
----
-
-## License
-
-MIT
+HTML is easier to scan, save, share, print, and attach to issues or notes.

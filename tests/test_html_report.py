@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ai_dev_review.html_report import build_session_report_data, render_report_html, write_report_bundle
-from ai_dev_review.models import SessionRecord, TranscriptEvent
+from recodex.html_report import build_session_report_data, render_report_html, write_report_bundle
+from recodex.models import SessionRecord, TranscriptEvent
 
 
 class HtmlReportTests(unittest.TestCase):
@@ -63,7 +63,7 @@ class HtmlReportTests(unittest.TestCase):
             self.assertEqual(json.loads(json_path.read_text(encoding="utf-8"))["meta"]["project"], "/work/aicoo")
             html = html_path.read_text(encoding="utf-8")
             self.assertIn("report-data", html)
-            self.assertIn("AI Dev Review", html)
+            self.assertIn("recodex", html)
 
 
 def _session() -> SessionRecord:

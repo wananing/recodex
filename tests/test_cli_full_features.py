@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ai_dev_review.cli import main
+from recodex.cli import main
 
 
 class FullFeatureCliTests(unittest.TestCase):
@@ -83,7 +83,7 @@ class FullFeatureCliTests(unittest.TestCase):
                 ),
                 0,
             )
-            self.assertTrue((root / ".ai-review.toml").exists())
+            self.assertTrue((root / ".recodex.toml").exists())
             self.assertEqual(main(["--db", str(db), "scan", str(transcript)]), 0)
 
             self.assertEqual(

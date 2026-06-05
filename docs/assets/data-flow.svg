@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="340" viewBox="0 0 1200 340" role="img" aria-labelledby="title desc">
-  <title id="title">ai-dev-review data flow</title>
+  <title id="title">recodex data flow</title>
   <desc id="desc">Data flow from Codex transcript to local parser, facts, rulebase, optional LLM, JSON and HTML report.</desc>
   <defs>
     <linearGradient id="line" x1="0" x2="1" y1="0" y2="0">

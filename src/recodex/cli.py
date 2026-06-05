@@ -87,6 +87,10 @@ from .transcripts import catalog_transcript_file, default_transcript_roots, disc
 COMMAND_NAMES = frozenset(
     {
         "init",
+        "latest",
+        "open",
+        "history",
+        "doctor",
         "scan",
         "quickstart",
         "report",
@@ -108,14 +112,14 @@ COMMAND_NAMES = frozenset(
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
-    args = parser.parse_args(_default_to_quickstart_args(argv))
+    args = parser.parse_args(_default_to_latest_args(argv))
     return args.handler(args)
 
 
-def _default_to_quickstart_args(argv: Sequence[str] | None) -> list[str]:
+def _default_to_latest_args(argv: Sequence[str] | None) -> list[str]:
     args = list(sys.argv[1:] if argv is None else argv)
     if not args:
-        return ["quickstart"]
+        return ["latest"]
     if any(arg in {"-h", "--help"} for arg in args):
         return args
 
@@ -130,27 +134,52 @@ def _default_to_quickstart_args(argv: Sequence[str] | None) -> list[str]:
         if token.startswith("--db="):
             index += 1
             continue
-        return args[:index] + ["quickstart"] + args[index:]
-    return args + ["quickstart"]
+        return args[:index] + ["latest"] + args[index:]
+    return args + ["latest"]
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="ai-review",
+        prog="recodex",
         description="Review AI development sessions.",
-        epilog="Run `ai-review` without a subcommand to scan recent sessions and write project reports.",
+        epilog="Run `recodex` without a subcommand to generate and open the latest local HTML report.",
     )
-    parser.add_argument("--db", help="SQLite database path. Defaults to .ai-review/ai-review.sqlite3.")
+    parser.add_argument("--db", help="SQLite database path. Defaults to .recodex/recodex.sqlite3.")
     subparsers = parser.add_subparsers(dest="command")
 
-    init = subparsers.add_parser("init", help="Initialize local ai-review state.")
-    init.add_argument("--project", default=".", help="Project directory for .ai-review.toml.")
+    init = subparsers.add_parser("init", help="Initialize local recodex state.")
+    init.add_argument("--project", default=".", help="Project directory for .recodex.toml.")
     init.add_argument("--sessions-dir", action="append", help="Codex sessions directory to catalog.")
     init.add_argument("--limit", type=int, help="Maximum transcript files to catalog.")
     init.add_argument("--select", type=int, help="Project number to process after cataloging.")
     init.add_argument("--process-limit", type=int, help="Maximum selected-project transcript files to scan.")
     init.add_argument("--no-prompt", action="store_true", help="Do not prompt for interactive project selection.")
     init.set_defaults(handler=cmd_init)
+
+    latest = subparsers.add_parser("latest", help="Generate and open the latest Codex session report.")
+    latest.add_argument("--sessions-dir", action="append", help="Codex sessions directory.")
+    latest.add_argument("--since", default="3650d", help="Window used to find the latest session.")
+    latest.add_argument("--reports-dir", help="Directory for generated reports.")
+    latest.add_argument("--no-open", action="store_true", help="Generate the report without opening a browser.")
+    latest.add_argument("--terminal", action="store_true", help="Print the terminal summary without opening a browser.")
+    latest.add_argument("--json", action="store_true", help="Generate only report.json for the latest session.")
+    latest.add_argument("--deep", action="store_true", help="Reserved for deeper analysis; currently uses the local report pipeline.")
+    latest.set_defaults(handler=cmd_latest)
+
+    open_cmd = subparsers.add_parser("open", help="Open a generated report.")
+    open_cmd.add_argument("target", nargs="?", default="latest", help="Report id or latest.")
+    open_cmd.add_argument("--reports-dir", help="Directory containing generated reports.")
+    open_cmd.set_defaults(handler=cmd_open)
+
+    history = subparsers.add_parser("history", help="Summarize repeated patterns across recent sessions.")
+    history.add_argument("--since", default="30d", help="Window such as 30d, 2w, 12h, or ISO datetime.")
+    history.add_argument("--reports-dir", help="Directory for Markdown reports.")
+    history.set_defaults(handler=cmd_patterns)
+
+    doctor = subparsers.add_parser("doctor", help="Inspect Codex session storage and recodex state.")
+    doctor.add_argument("--sessions-dir", action="append", help="Codex sessions directory.")
+    doctor.add_argument("--archive-dir", help="recodex archive directory.")
+    doctor.set_defaults(handler=cmd_storage_stats)
 
     scan = subparsers.add_parser("scan", help="Scan Codex transcript files into SQLite.")
     scan.add_argument("paths", nargs="*", help="Transcript files or directories.")
@@ -299,7 +328,7 @@ def build_parser() -> argparse.ArgumentParser:
     storage_restore = storage_sub.add_parser("restore", help="Restore an archived session file.")
     storage_restore.add_argument("session_id")
     storage_restore.add_argument("--sessions-dir", action="append", help="Codex sessions directory.")
-    storage_restore.add_argument("--archive-dir", help="AI review archive directory.")
+    storage_restore.add_argument("--archive-dir", help="recodex archive directory.")
     storage_restore.set_defaults(handler=cmd_storage_restore)
     storage_vacuum = storage_sub.add_parser("vacuum", help="Optimize and vacuum the SQLite index.")
     storage_vacuum.set_defaults(handler=cmd_storage_vacuum)
@@ -333,7 +362,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     conn = connect(db_path(args.db))
     project = Path(args.project).expanduser().resolve()
     project.mkdir(parents=True, exist_ok=True)
-    config_path = project / ".ai-review.toml"
+    config_path = project / ".recodex.toml"
     if not config_path.exists():
         write_text(config_path, _default_project_config(project))
     roots = [Path(value) for value in args.sessions_dir] if args.sessions_dir else default_transcript_roots()
@@ -571,8 +600,93 @@ def cmd_quickstart(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_latest(args: argparse.Namespace) -> int:
+    try:
+        since = parse_since_datetime(args.since)
+    except ValueError as exc:
+        print(exc)
+        return 1
+
+    roots = storage_roots(args.sessions_dir)
+    files = recent_storage_files(roots, since, 1)
+    if not files:
+        print(f"No Codex JSONL session files found since {args.since}.")
+        return 0
+
+    file = files[0]
+    try:
+        parsed = parse_transcript_file(file)
+    except OSError as exc:
+        print(f"Failed to scan {redact_text(str(file))}: {exc}")
+        return 1
+    if parsed.session.message_count <= 0:
+        print(f"Latest Codex session has no parseable messages: {redact_text(str(file))}")
+        return 1
+
+    conn = connect(db_path(args.db))
+    save_transcript(conn, parsed)
+    events = list(parsed.events)
+    session_dir = _latest_session_report_dir(reports_dir(args.reports_dir), parsed.session)
+    report_data = build_session_report_data(parsed.session, events)
+    if args.json:
+        report_json_path = write_report_json(session_dir / "report.json", report_data)
+        print(report_json_path)
+        return 0
+
+    report_json_path, report_html_path = write_report_bundle(session_dir, "report", report_data)
+    report_md_path = write_text(session_dir / "report.md", render_retro(parsed.session, events))
+
+    print("[ok] Found latest Codex session")
+    print("[ok] Quick analysis completed")
+    print("[ok] Generated report.html")
+    if not args.no_open and not args.terminal:
+        _open_html_report(report_html_path)
+        print("[ok] Opened report in browser")
+    print("")
+    print(f"Report: {report_html_path}")
+    print(f"Report JSON: {report_json_path}")
+    print(f"Report Markdown: {report_md_path}")
+    issues = report_data.get("issues") if isinstance(report_data, dict) else None
+    if isinstance(issues, list) and issues:
+        print("")
+        print("Key findings:")
+        for issue in issues[:3]:
+            if isinstance(issue, dict):
+                print(f"- {redact_text(str(issue.get('title') or 'Untitled finding'))}")
+    return 0
+
+
+def cmd_open(args: argparse.Namespace) -> int:
+    report_dir = reports_dir(args.reports_dir)
+    if args.target != "latest":
+        candidate = report_dir / args.target / "report.html"
+        if not candidate.exists():
+            print(f"No report found for `{args.target}` under {report_dir}.")
+            return 1
+        _open_html_report(candidate)
+        print(candidate)
+        return 0
+
+    matches = sorted(
+        report_dir.glob("*/report.html"),
+        key=lambda path: path.stat().st_mtime if path.exists() else 0,
+        reverse=True,
+    )
+    if not matches:
+        print(f"No generated reports found under {report_dir}. Run `recodex` first.")
+        return 1
+    _open_html_report(matches[0])
+    print(matches[0])
+    return 0
+
+
 def _session_project_key(session) -> str:
     return session.project_path or session.cwd or "(unknown)"
+
+
+def _latest_session_report_dir(report_dir: Path, session) -> Path:
+    safe_id = re.sub(r"[^a-zA-Z0-9_.-]+", "-", str(session.session_id)).strip("-")
+    return report_dir / (safe_id or "latest-session")
 
 
 def _write_session_html_report(
@@ -715,7 +829,7 @@ def cmd_sessions_list(args: argparse.Namespace) -> int:
     since = parse_since(args.since) if args.since else None
     sessions = list_sessions(conn, since)
     if not sessions:
-        print("No sessions found. Run `ai-review scan` first.")
+        print("No sessions found. Run `recodex scan` first.")
         return 0
     for session in sessions:
         print(
@@ -781,7 +895,7 @@ def cmd_retro(args: argparse.Namespace) -> int:
 
     session = get_session(conn, args.target)
     if session is None:
-        print("No sessions found. Run `ai-review scan` first.")
+        print("No sessions found. Run `recodex scan` first.")
         return 1
     events = get_events(conn, session.session_id)
     path = retro_report_path(reports_dir(args.reports_dir), session)
@@ -1166,7 +1280,7 @@ def cmd_before(args: argparse.Namespace) -> int:
         for row in rows:
             print(f"- [{row['status']}] {row['title']}: {_excerpt(row['recommendation'])}")
     else:
-        print("- No candidates yet. Run `ai-review scan` and `ai-review improvements propose`.")
+        print("- No candidates yet. Run `recodex scan` and `recodex improvements propose`.")
     print("")
     print("## Suggested Checklist")
     print("- Identify files and commands before editing.")
@@ -1281,7 +1395,7 @@ def _default_project_config(project: Path) -> str:
             'skills_dir = "./.agents/skills"',
             'checklists_dir = "./docs/ai-checklists"',
             'scripts_dir = "./scripts/ai"',
-            'reports_dir = "./.ai-review/reports"',
+            'reports_dir = "./.recodex/reports"',
             "",
         ]
     )
@@ -1293,13 +1407,13 @@ def _codex_after_session_script() -> str:
             "#!/usr/bin/env bash",
             "set -euo pipefail",
             "",
-            "# Codex hook helper for ai-dev-review.",
+            "# Codex hook helper for recodex.",
             "# It accepts Codex hook JSON on stdin and falls back to latest session.",
             'payload="$(cat || true)"',
             'session_id="$(printf "%s" "$payload" | python3 -c \'import json,sys; '
             'data=sys.stdin.read(); '
             'print((json.loads(data).get("session_id") if data.strip() else "") or "latest")\' 2>/dev/null || printf latest)"',
-            'ai-review after --session "${session_id:-latest}"',
+            'recodex after --session "${session_id:-latest}"',
             "",
         ]
     )

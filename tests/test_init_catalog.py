@@ -7,8 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ai_dev_review.cli import main
-from ai_dev_review.db import connect, count_catalog_entries, count_sessions, list_catalog_projects
+from recodex.cli import main
+from recodex.db import connect, count_catalog_entries, count_sessions, list_catalog_projects
 
 
 class InitCatalogTests(unittest.TestCase):

@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from ai_dev_review.transcripts import (
+from recodex.transcripts import (
     default_transcript_roots,
     looks_like_user_correction,
     parse_transcript_file,

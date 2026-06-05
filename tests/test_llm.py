@@ -10,8 +10,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from ai_dev_review.cli import main
-from ai_dev_review.llm import (
+from recodex.cli import main
+from recodex.llm import (
     DEFAULT_VOLCENGINE_BASE_URL,
     DEFAULT_VOLCENGINE_MODEL,
     MockProvider,

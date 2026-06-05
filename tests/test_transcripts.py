@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ai_dev_review.transcripts import parse_transcript_file
+from recodex.transcripts import parse_transcript_file
 
 
 class TranscriptParsingTests(unittest.TestCase):
