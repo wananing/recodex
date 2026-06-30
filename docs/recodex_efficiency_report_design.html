@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>recodex 效率复盘报告 · 设计稿</title>
+  <style>
+    :root{
+      --bg:#f6f8fb;
+      --paper:#ffffff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --soft:#e6edf6;
+      --line:#dbe4f0;
+      --blue:#2563eb;
+      --blue2:#0ea5e9;
+      --blue3:#e8f1ff;
+      --green:#059669;
+      --amber:#d97706;
+      --red:#dc2626;
+      --purple:#7c3aed;
+      --code:#0b1220;
+      --shadow:0 18px 50px rgba(15,23,42,.08), 0 2px 10px rgba(15,23,42,.04);
+      --radius:22px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:radial-gradient(900px 500px at 20% -5%, #eaf3ff 0%, transparent 55%), var(--bg);
+      color:var(--ink);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif;
+      line-height:1.55;
+    }
+    .app{display:grid; grid-template-columns:252px minmax(0,1fr); min-height:100vh;}
+    aside{
+      border-right:1px solid var(--line); background:rgba(255,255,255,.74); backdrop-filter:blur(18px);
+      padding:26px 18px; position:sticky; top:0; height:100vh;
+    }
+    .brand{display:flex; gap:12px; align-items:center; margin-bottom:30px;}
+    .brand-mark{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#1d4ed8,#38bdf8);color:white;display:grid;place-items:center;font-weight:800;font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;font-size:16px;box-shadow:0 14px 34px rgba(37,99,235,.28)}
+    .brand h1{font-size:20px; line-height:1; margin:0; letter-spacing:-.03em;}
+    .brand p{margin:3px 0 0;color:var(--muted);font-size:12px;}
+    .nav{display:grid;gap:6px;margin:18px 0;}
+    .nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;color:#475569;text-decoration:none;font-size:14px;font-weight:600;}
+    .nav a.active{background:#eaf2ff;color:#1d4ed8;box-shadow:inset 0 0 0 1px #d7e6ff;}
+    .side-card{margin-top:30px;padding:16px;border:1px solid var(--line);border-radius:18px;background:#fff;color:var(--muted);font-size:13px;}
+    .side-card strong{display:block;color:var(--ink);margin-bottom:6px;}
+    main{padding:34px 38px 64px;}
+    header.top{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:22px;}
+    .title h2{margin:0;font-size:32px;letter-spacing:-.04em;}
+    .title p{margin:8px 0 0;color:var(--muted);font-size:14px;}
+    .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
+    .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:white;border-radius:999px;padding:6px 10px;font-size:12px;color:#475569;font-weight:600;}
+    .actions{display:flex;gap:10px;}
+    button{border:0;border-radius:14px;padding:10px 14px;font-weight:700;cursor:default;}
+    .btn-ghost{background:white;color:#334155;border:1px solid var(--line)}
+    .btn-primary{background:linear-gradient(135deg,#2563eb,#0ea5e9);color:white;box-shadow:0 12px 30px rgba(37,99,235,.25)}
+    .hero{border:1px solid #cfe0f6;background:linear-gradient(135deg,#ffffff 0%,#f4f9ff 48%,#eaf3ff 100%);border-radius:28px;padding:28px;box-shadow:var(--shadow);position:relative;overflow:hidden;margin-bottom:20px;}
+    .hero:after{content:"";position:absolute;right:-80px;top:-90px;width:280px;height:280px;background:radial-gradient(circle,#bfe4ff 0%,transparent 68%);opacity:.6}
+    .hero-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(360px,.75fr);gap:24px;position:relative;z-index:1;}
+    .eyebrow{display:inline-flex;gap:8px;align-items:center;font-size:12px;font-weight:800;color:#1d4ed8;background:#e5f0ff;border:1px solid #cce1ff;border-radius:999px;padding:6px 10px;margin-bottom:16px;}
+    .hero h3{font-size:34px;line-height:1.12;margin:0 0 14px;letter-spacing:-.045em;}
+    .hero .lead{font-size:15px;color:#475569;margin:0;max-width:760px;}
+    .cost-box{margin-top:22px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+    .cost{background:rgba(255,255,255,.72);border:1px solid #d8e6f8;border-radius:18px;padding:14px;}
+    .cost b{display:block;font-size:25px;letter-spacing:-.03em;}
+    .cost span{display:block;color:var(--muted);font-size:12px;margin-top:2px;}
+    .primary-action{background:#0b1220;color:#dbeafe;border-radius:22px;padding:20px;box-shadow:0 20px 45px rgba(15,23,42,.18);}
+    .primary-action .label{color:#93c5fd;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;}
+    .primary-action h4{font-size:22px;line-height:1.2;margin:10px 0 8px;color:#fff;}
+    .primary-action p{color:#b7c6d9;font-size:13px;margin:0 0 14px;}
+    pre{margin:0;background:#050b16;border:1px solid rgba(147,197,253,.18);border-radius:16px;padding:14px;overflow:auto;color:#e0f2fe;font-size:12px;line-height:1.55;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+    .section{margin-top:20px;}
+    .section-title{display:flex;align-items:flex-end;justify-content:space-between;margin:0 0 12px;}
+    .section-title h3{margin:0;font-size:19px;letter-spacing:-.025em;}
+    .section-title p{margin:0;color:var(--muted);font-size:13px;}
+    .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}
+    .grid-2{display:grid;grid-template-columns:1.04fr .96fr;gap:14px;}
+    .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:0 10px 30px rgba(15,23,42,.045);}
+    .mini h4,.card h4{margin:0 0 8px;font-size:15px;}
+    .mini p,.card p{margin:0;color:#536273;font-size:13px;}
+    .mini{background:white;border:1px solid var(--line);border-radius:20px;padding:16px;}
+    .mini .icon{width:34px;height:34px;border-radius:12px;display:grid;place-items:center;margin-bottom:12px;font-weight:800;}
+    .i-green{background:#e8fbf3;color:var(--green)}.i-amber{background:#fff3df;color:var(--amber)}.i-red{background:#fff0f0;color:var(--red)}.i-blue{background:#eaf3ff;color:var(--blue)}.i-purple{background:#f2ecff;color:var(--purple)}
+    .timeline{background:white;border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:0 10px 30px rgba(15,23,42,.045);}
+    .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;position:relative;}
+    .step{border:1px solid var(--line);border-radius:18px;padding:14px;min-height:128px;background:#fff;position:relative;}
+    .step .num{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:900;margin-bottom:10px;}
+    .blue{background:var(--blue)}.green{background:var(--green)}.amber{background:var(--amber)}.red{background:var(--red)}.purple{background:var(--purple)}
+    .tag{display:inline-flex;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:800;background:#f1f5f9;color:#475569;margin-top:7px;}
+    .tag.red{background:#fff0f0;color:var(--red)}.tag.amber{background:#fff6e8;color:var(--amber)}.tag.green{background:#ecfdf5;color:var(--green)}.tag.blue{background:#eaf3ff;color:var(--blue)}
+    .finding{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;padding:16px;border:1px solid var(--line);border-radius:20px;background:#fff;margin-bottom:12px;}
+    .finding .rank{width:38px;height:38px;border-radius:14px;display:grid;place-items:center;color:#fff;font-weight:900;}
+    .finding h4{font-size:16px;margin:0 0 6px;}
+    .finding dl{display:grid;grid-template-columns:60px 1fr;gap:6px 8px;margin:10px 0 0;font-size:12px;}
+    .finding dt{color:#94a3b8;font-weight:800}.finding dd{margin:0;color:#475569;}
+    .route{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px;}
+    .route-item{border:1px solid var(--line);background:#f8fbff;border-radius:16px;padding:12px;}
+    .route-item strong{display:block;font-size:13px;margin-bottom:3px}.route-item span{font-size:12px;color:var(--muted)}
+    table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;overflow:hidden;border:1px solid var(--line);border-radius:18px;background:white;}
+    th,td{padding:12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;}
+    th{background:#f7faff;color:#475569;font-size:12px;}
+    tr:last-child td{border-bottom:0}
+    .status{display:inline-flex;align-items:center;gap:6px;font-weight:800;border-radius:999px;padding:4px 8px;font-size:12px;}
+    .dot{width:8px;height:8px;border-radius:50%;display:inline-block}.dot.green{background:var(--green)}.dot.red{background:var(--red)}.dot.amber{background:var(--amber)}
+    details{border:1px solid var(--line);border-radius:18px;background:white;margin-bottom:10px;overflow:hidden;}
+    summary{padding:14px 16px;font-weight:800;cursor:default;list-style:none;}
+    details p{padding:0 16px 16px;margin:0;color:#536273;font-size:13px;}
+    .footer{margin-top:28px;color:var(--muted);font-size:12px;text-align:center;}
+    @media(max-width:1100px){.app{grid-template-columns:1fr}aside{display:none}.hero-grid,.grid-2{grid-template-columns:1fr}.grid-4,.grid-3,.steps,.cost-box{grid-template-columns:1fr 1fr}.actions{display:none}}
+    @media(max-width:680px){main{padding:22px 16px}.title h2{font-size:25px}.hero h3{font-size:26px}.grid-4,.grid-3,.steps,.cost-box{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand">
+      <div class="brand-mark">&gt;_✓</div>
+      <div><h1>recodex</h1><p>Codex 会话效率复盘</p></div>
+    </div>
+    <nav class="nav">
+      <a href="#">⌘ 概览</a>
+      <a href="#">▦ 会话</a>
+      <a class="active" href="#">◈ 报告</a>
+      <a href="#">◇ 沉淀</a>
+      <a href="#">⚙ 设置</a>
+    </nav>
+    <div class="side-card"><strong>本地优先</strong>报告由本地 session 解析生成，证据片段默认脱敏，可直接保存或分享。</div>
+  </aside>
+
+  <main>
+    <header class="top">
+      <div class="title">
+        <h2>Codex 使用效率复盘报告</h2>
+        <p>这份报告不总结聊天内容，而是找出你和 Codex 协作中最值得优化的效率成本。</p>
+        <div class="chips">
+          <span class="chip">项目 acme/web-app</span><span class="chip">会话 cxs_9f4b7e2d</span><span class="chip">深度分析</span><span class="chip">已脱敏</span><span class="chip">本地 HTML</span>
+        </div>
+      </div>
+      <div class="actions"><button class="btn-ghost">复制摘要</button><button class="btn-primary">分享报告</button></div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-grid">
+        <div>
+          <div class="eyebrow">本次最大可避免成本</div>
+          <h3>测试入口发现过晚，导致有效验证被推迟。</h3>
+          <p class="lead">这次会话不是“Codex 不会做”，而是稳定项目知识没有进入默认上下文：正确 workspace 与测试命令在中段才出现，前期产生了错误目录探索、失败命令和用户纠偏。</p>
+          <div class="cost-box">
+            <div class="cost"><b>3</b><span>失败命令</span></div>
+            <div class="cost"><b>2</b><span>错误目录探索</span></div>
+            <div class="cost"><b>1</b><span>用户纠偏</span></div>
+            <div class="cost"><b>~11m</b><span>可避免循环</span></div>
+          </div>
+        </div>
+        <div class="primary-action">
+          <div class="label">最高杠杆改进</div>
+          <h4>把 workspace 范围和标准测试命令写入 AGENTS.md。</h4>
+          <p>这不是一次性 Prompt 建议，而是稳定项目知识的沉淀。</p>
+          <pre>## Auth verification
+- For auth changes, work in `apps/web`.
+- Run `pnpm test:auth` before completion.
+- Run `pnpm typecheck` for TypeScript changes.
+- Final response must include commands and results.</pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h3>30 秒结论</h3><p>先看最有用的点，再看证据。</p></div>
+      <div class="grid-4">
+        <div class="mini"><div class="icon i-green">✓</div><h4>结果</h4><p>核心修改完成，但完成可信度被验证缺口拉低。</p></div>
+        <div class="mini"><div class="icon i-amber">!</div><h4>最大摩擦</h4><p>稳定项目知识出现太晚，造成错误路径探索。</p></div>
+        <div class="mini"><div class="icon i-red">⚑</div><h4>主要风险</h4><p>验证证据不足，检查成本被转移给用户。</p></div>
+        <div class="mini"><div class="icon i-blue">→</div><h4>首要动作</h4><p>沉淀测试入口与完成标准，而不是下次再口头提醒。</p></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-title"><h3>流程轨迹</h3><p>标出效率成本发生在哪个阶段。</p></div>
+      <div class="timeline">
+        <div class="steps">
+          <div class="step"><div class="num green">1</div><h4>提出任务</h4><p>目标明确，但缺少项目入口和验证方式。</p><span class="tag amber">信息不足</span></div>
+          <div class="step"><div class="num amber">2</div><h4>探索定位</h4><p>在错误 workspace 内探索，产生额外读取。</p><span class="tag amber">探索偏宽</span></div>
+          <div class="step"><div class="num red">3</div><h4>用户纠偏</h4><p>用户补充正确目录和测试命令。</p><span class="tag red">关键转折</span></div>
+          <div class="step"><div class="num blue">4</div><h4>实现修改</h4><p>修改命中核心逻辑，范围基本可控。</p><span class="tag green">有效推进</span></div>
+          <div class="step"><div class="num purple">5</div><h4>收尾验收</h4><p>缺少完整测试与 typecheck 结果。</p><span class="tag red">证据不足</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section grid-2">
+      <div>
+        <div class="section-title"><h3>Top 3 效率问题</h3><p>按可避免成本排序。</p></div>
+        <div class="finding">
+          <div class="rank red">1</div><div><h4>稳定项目知识被反复重新发现</h4><p>正确测试入口和工作目录不应每次由用户临时补充。</p><dl><dt>成本</dt><dd>3 次失败命令、2 次错误路径探索</dd><dt>根因</dt><dd>Project / Harness 层缺少默认上下文</dd><dt>动作</dt><dd>写入 AGENTS.md，并在报告中生成可复制片段</dd></dl></div>
+        </div>
+        <div class="finding">
+          <div class="rank amber">2</div><div><h4>验证债务转移给用户</h4><p>最终回答说明已完成，但缺少测试、typecheck 和命令结果。</p><dl><dt>成本</dt><dd>用户需要自行复测，信任建立变慢</dd><dt>根因</dt><dd>完成标准没有变成固定验收机制</dd><dt>动作</dt><dd>添加完成前 checklist，重复出现时升级为 Hook / CI</dd></dl></div>
+        </div>
+        <div class="finding">
+          <div class="rank purple">3</div><div><h4>失败后假设更新不充分</h4><p>同类失败后继续尝试近似命令，没有先总结当前假设。</p><dl><dt>成本</dt><dd>重复尝试与无效轮次</dd><dt>根因</dt><dd>调试流程缺少“失败两次后重设假设”动作</dd><dt>动作</dt><dd>作为协作建议；若重复出现，再沉淀调试 Skill</dd></dl></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title"><h3>沉淀路由</h3><p>不是所有问题都生成 Skill。</p></div>
+        <div class="card">
+          <h4>本次建议落地优先级</h4>
+          <div class="route">
+            <div class="route-item"><strong>AGENTS.md</strong><span>高优先级：测试入口、workspace、完成标准。</span></div>
+            <div class="route-item"><strong>Checklist</strong><span>中优先级：收尾验证结果必须展示。</span></div>
+            <div class="route-item"><strong>Skill</strong><span>暂缓：目前流程判断不足，先观察重复性。</span></div>
+            <div class="route-item"><strong>Hook / CI</strong><span>重复三次后升级为强制检查。</span></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <h4>是否值得沉淀为 Skill？</h4>
+          <p>当前不建议直接生成 Skill。原因：本次主要问题是稳定项目知识缺失和验收标准缺失，不是复杂多步骤流程。若未来多次出现“auth 调试 → 定位 → 修复 → 验证”的固定流程，再升级为 Skill。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section grid-2">
+      <div>
+        <div class="section-title"><h3>验收证据</h3><p>区分“真的验证”和“只是说完成”。</p></div>
+        <table><thead><tr><th>项目</th><th>状态</th><th>证据 / 备注</th></tr></thead><tbody>
+          <tr><td>测试 Test</td><td><span class="status"><span class="dot amber"></span>部分完成</span></td><td>只发现局部测试，缺少 auth 标准命令结果。</td></tr>
+          <tr><td>Typecheck</td><td><span class="status"><span class="dot red"></span>缺失</span></td><td>未发现 TypeScript 类型检查输出。</td></tr>
+          <tr><td>最终回答命令结果</td><td><span class="status"><span class="dot amber"></span>不足</span></td><td>说明修改完成，但未列出验证命令和结果。</td></tr>
+          <tr><td>修改文件清单</td><td><span class="status"><span class="dot green"></span>已发现</span></td><td>Codex 正确列出主要修改文件。</td></tr>
+        </tbody></table>
+      </div>
+      <div>
+        <div class="section-title"><h3>哪些信息应该更早给 Codex</h3><p>按“信息类型”而不是“Prompt”整理。</p></div>
+        <table><thead><tr><th>信息项</th><th>出现时机</th><th>建议位置</th></tr></thead><tbody>
+          <tr><td><b>pnpm test:auth</b></td><td>用户中段补充</td><td>AGENTS.md / 项目说明</td></tr>
+          <tr><td><b>apps/web</b></td><td>探索偏离后出现</td><td>项目目录清单</td></tr>
+          <tr><td><b>不要改 API shape</b></td><td>实现前未固定</td><td>任务约束 / 路径规则</td></tr>
+          <tr><td><b>pnpm typecheck</b></td><td>全会话未出现</td><td>完成标准 / Hook 候选</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <section class="section grid-2">
+      <div class="card">
+        <h4>值得保留的做法</h4>
+        <p>Codex 能较快定位到核心逻辑，修改范围基本可控；用户在发现目录偏离后及时纠正，避免继续扩大错误方向。这类高价值干预值得保留。</p>
+      </div>
+      <div>
+        <div class="section-title"><h3>依据与证据</h3><p>默认折叠，分享时可展开。</p></div>
+        <details><summary>证据 1：用户中段补充正确测试命令</summary><p>“这个项目核心路径在 apps/web，测试命令是 pnpm test:auth。” → 支持“稳定项目知识发现过晚”。</p></details>
+        <details><summary>证据 2：最终回答缺少验证结果</summary><p>最终回答声明完成，但未包含测试、typecheck 或构建命令结果。</p></details>
+        <details><summary>证据 3：重复失败命令</summary><p>同类命令在错误目录中失败 3 次，且失败原因与 workspace 选择相关。</p></details>
+      </div>
+    </section>
+
+    <div class="footer">recodex · 本地优先 · 报告基于结构化证据生成 · 可保存为单文件 HTML</div>
+  </main>
+</div>
+</body>
+</html>

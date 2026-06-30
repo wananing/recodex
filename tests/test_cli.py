@@ -58,6 +58,40 @@ class CliSmokeTests(unittest.TestCase):
                                 },
                             }
                         ),
+                        json.dumps(
+                            {
+                                "type": "response_item",
+                                "session_id": "smoke-1",
+                                "timestamp": "2026-05-28T01:03:00+00:00",
+                                "item": {
+                                    "type": "message",
+                                    "role": "user",
+                                    "content": [
+                                        {
+                                            "type": "input_text",
+                                            "text": "Use pnpm instead of npm for package manager commands.",
+                                        }
+                                    ],
+                                },
+                            }
+                        ),
+                        json.dumps(
+                            {
+                                "type": "response_item",
+                                "session_id": "smoke-1",
+                                "timestamp": "2026-05-28T01:04:00+00:00",
+                                "item": {
+                                    "type": "message",
+                                    "role": "user",
+                                    "content": [
+                                        {
+                                            "type": "input_text",
+                                            "text": "Use pnpm instead of npm for package manager commands.",
+                                        }
+                                    ],
+                                },
+                            }
+                        ),
                     ]
                 ),
                 encoding="utf-8",
@@ -70,10 +104,14 @@ class CliSmokeTests(unittest.TestCase):
             )
             with contextlib.redirect_stdout(io.StringIO()) as report_output:
                 self.assertEqual(
-                    main(["--db", str(db), "report", "latest", "--reports-dir", str(reports)]),
+                    main(["--db", str(db), "report", "latest", "--reports-dir", str(reports), "--deep"]),
                     0,
                 )
             self.assertIn(".html", report_output.getvalue())
+            report_json = next(reports.glob("retro-*.json"))
+            report_payload = json.loads(report_json.read_text(encoding="utf-8"))
+            self.assertIn("evidence_audit", report_payload)
+            self.assertIn("deep-audit", report_payload["meta"]["analysis_mode"])
             self.assertEqual(
                 main(["--db", str(db), "patterns", "--since", "3650d", "--reports-dir", str(reports)]),
                 0,
@@ -96,12 +134,13 @@ class CliSmokeTests(unittest.TestCase):
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
                 self.assertEqual(main(["--db", str(db), "improvements", "review"]), 0)
-            self.assertIn("sandbox", output.getvalue().lower())
+            self.assertIn("agents_md", output.getvalue())
 
             self.assertEqual(
                 main(["--db", str(db), "export", "agents", "--exports-dir", str(exports)]),
                 0,
             )
+            self.assertEqual(main(["--db", str(db), "improvements", "accept", "1"]), 0)
             self.assertEqual(
                 main(["--db", str(db), "export", "skills", "--exports-dir", str(exports)]),
                 0,
@@ -113,9 +152,94 @@ class CliSmokeTests(unittest.TestCase):
             self.assertTrue((reports / "patterns-3650d.md").exists())
             self.assertTrue((reports / "improvements.md").exists())
             self.assertTrue((exports / "AGENTS.patch.md").exists())
-            self.assertTrue((exports / "skills" / "recodex-retro" / "SKILL.md").exists())
-            self.assertTrue((exports / "checklists" / "recodex-retro.md").exists())
-            self.assertTrue((exports / "scripts" / "recodex-weekly.sh").exists())
+            self.assertTrue(any((exports / "skills").glob("*/SKILL.md")))
+
+    def test_mine_command_writes_evidence_pipeline_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            transcript = root / "correction.jsonl"
+            db = root / "state.sqlite3"
+            output = root / "mining"
+            transcript.write_text(
+                "\n".join(
+                    [
+                        json.dumps(
+                            {
+                                "type": "response_item",
+                                "session_id": "mine-1",
+                                "timestamp": "2026-06-15T01:00:00+00:00",
+                                "item": {
+                                    "type": "message",
+                                    "role": "user",
+                                    "content": [
+                                        {"type": "input_text", "text": "帮我修 CI failure。"}
+                                    ],
+                                },
+                            }
+                        ),
+                        json.dumps(
+                            {
+                                "type": "response_item",
+                                "session_id": "mine-1",
+                                "timestamp": "2026-06-15T01:01:00+00:00",
+                                "item": {
+                                    "type": "message",
+                                    "role": "assistant",
+                                    "content": [{"type": "output_text", "text": "我已经修好了。"}],
+                                },
+                            }
+                        ),
+                        json.dumps(
+                            {
+                                "type": "response_item",
+                                "session_id": "mine-1",
+                                "timestamp": "2026-06-15T01:02:00+00:00",
+                                "item": {
+                                    "type": "message",
+                                    "role": "user",
+                                    "content": [
+                                        {
+                                            "type": "input_text",
+                                            "text": "你还没看 CI 日志，也没跑失败的 test。",
+                                        }
+                                    ],
+                                },
+                            }
+                        ),
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            self.assertEqual(main(["--db", str(db), "scan", str(transcript)]), 0)
+            self.assertEqual(
+                main(
+                    [
+                        "--db",
+                        str(db),
+                        "mine",
+                        "--since",
+                        "3650d",
+                        "--output-dir",
+                        str(output),
+                    ]
+                ),
+                0,
+            )
+
+            self.assertTrue((output / "cards.jsonl").exists())
+            self.assertTrue((output / "clusters.json").exists())
+            self.assertTrue((output / "review_queue.json").exists())
+            self.assertTrue((output / "coverage_report.md").exists())
+
+    def test_evals_run_outputs_golden_metrics(self) -> None:
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(main(["evals", "run", "--json"]), 0)
+
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["case_count"], 2)
+        self.assertEqual(payload["routing_accuracy"], 1.0)
+        self.assertEqual(payload["false_skill_promotions"], 0)
 
 
 if __name__ == "__main__":

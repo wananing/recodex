@@ -119,6 +119,7 @@ recodex              # 分析 latest session 并打开 HTML 报告
 recodex --no-open    # 生成报告但不打开浏览器
 recodex --terminal   # 保持浏览器关闭，只看终端摘要
 recodex --json       # 只生成 report.json
+recodex --deep       # 生成报告并加入证据审计结果
 ```
 
 显式 latest：
@@ -146,10 +147,11 @@ recodex doctor       # 检查 Codex session 目录和 recodex 状态
 
 ```bash
 recodex scan ~/.codex/sessions
-recodex report latest --open
+recodex report latest --deep --open
 recodex retro latest --local-only
 recodex quickstart --since 7d --limit 5
 recodex history --since 30d
+recodex evals run --json
 recodex export agents
 recodex export checklist
 recodex storage stats
@@ -178,6 +180,25 @@ recodex storage stats
 默认情况下，`recodex` 生成自包含的 `report.html` 并用浏览器打开，不需要后台服务。
 
 本地 report server 适合以后浏览多份报告、搜索历史报告、查看周报和趋势。这个能力是可选增强，不是默认入口。
+
+## React Dashboard
+
+`dashboard/` 是从 ContextSeek 控制台复制并改造成的 Vite React 工作台，用于 v0.2.0 的 import、watch、session、report、analysis、artifact preview 和 skill export 流程。
+
+```bash
+make dashboard-install
+make dashboard-build
+make dashboard-preview
+make dashboard-serve
+```
+
+`make dashboard-serve` 会构建前端并启动本地 API + SPA：
+
+```bash
+recodex serve --dashboard-dir dashboard/dist
+```
+
+Dashboard 端点包括 `/overview`、`/sessions`、`/import/run`、`/watch/run`、`/settings/llm`、`/reports`、`/reports/generate`、`/analysis/run`、`/improvements`、`/artifacts/preview`、`/artifacts/export`、`/artifacts/effectiveness` 和 `/skills/export`。
 
 计划命令：
 
@@ -272,21 +293,20 @@ reports_dir = "./.recodex/reports"
 - [x] 检测上下文补充偏晚
 - [x] 检测验证证据缺失
 - [x] 生成 Top 建议和证据附录
+- [x] Deep evidence audit 模式
+- [x] Artifact preview/export/review/effectiveness loop
+- [x] Golden eval suite
 
 下一步：
 
 - [ ] 更好的 evidence appendix
 - [ ] `recodex open` 历史报告选择
 - [ ] `recodex doctor` 大 session 目录诊断
-- [ ] AGENTS.md suggestion snippets
-- [ ] checklist suggestions
 - [ ] 可选本地 report server
 
 更后面：
 
-- [ ] deep analysis mode
 - [ ] batch analysis
-- [ ] eval suite
 - [ ] Claude Code adapter
 - [ ] Cursor adapter
 - [ ] Git / GitHub adapter

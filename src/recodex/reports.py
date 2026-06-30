@@ -4,7 +4,15 @@ import re
 from pathlib import Path
 from sqlite3 import Row
 
-from .analysis import ERROR_TERMS, SANDBOX_TERMS, TEST_TERMS, WORKFLOW_TERMS, session_signals, top_terms
+from .analysis import (
+    ERROR_TERMS,
+    SANDBOX_TERMS,
+    TEST_TERMS,
+    WORKFLOW_TERMS,
+    mechanism_for_improvement_category,
+    session_signals,
+    top_terms,
+)
 from .db import now_utc
 from .models import SessionRecord, TranscriptEvent
 from .privacy import redact_text
@@ -140,6 +148,9 @@ def render_patterns(
     events_by_session: dict[str, list[TranscriptEvent]],
     since_label: str,
 ) -> str:
+    from .efficiency_analysis import run_efficiency_analysis
+
+    efficiency = run_efficiency_analysis(sessions, events_by_session)
     all_events = [event for events in events_by_session.values() for event in events]
     total_messages = sum(session.message_count for session in sessions)
     total_commands = sum(session.command_count for session in sessions)
@@ -180,6 +191,45 @@ def render_patterns(
     else:
         lines.append("- No sessions found for this window.")
 
+    lines.extend(["", "## Efficiency Findings", ""])
+    if efficiency.findings:
+        for finding in efficiency.findings:
+            refs = ", ".join(finding.evidence_refs) or "none"
+            lines.extend(
+                [
+                    f"### {redact_text(finding.title)}",
+                    "",
+                    f"- Problem type: `{finding.problem_type}`",
+                    f"- Mechanism: `{finding.mechanism}`",
+                    f"- Occurrences: {finding.occurrences}",
+                    f"- Evidence refs: {refs}",
+                    "",
+                    redact_text(finding.observation),
+                    "",
+                ]
+            )
+    else:
+        lines.append("- No v2 efficiency findings detected for this window.")
+
+    lines.extend(["", "## Artifact Candidates", ""])
+    if efficiency.artifact_candidates:
+        for candidate in efficiency.artifact_candidates:
+            source_ids = ", ".join(candidate.source_finding_ids)
+            lines.extend(
+                [
+                    f"### {redact_text(candidate.title)}",
+                    "",
+                    f"- Mechanism: `{candidate.mechanism}`",
+                    f"- Target: `{candidate.target_path or 'none'}`",
+                    f"- Source findings: {source_ids}",
+                    "",
+                    redact_text(candidate.rationale),
+                    "",
+                ]
+            )
+    else:
+        lines.append("- No artifact candidates detected for this window.")
+
     lines.extend(
         [
             "",
@@ -214,7 +264,7 @@ def render_improvements(rows: list[Row]) -> str:
                 f"## #{row['id']} {redact_text(row['title'])}",
                 "",
                 f"- Status: `{row['status']}`",
-                f"- Category: `{row['category']}`",
+                f"- Mechanism: `{mechanism_for_improvement_category(row['category'])}`",
                 f"- Session: `{row['session_id'] or 'aggregate'}`",
                 "",
                 "Evidence:",

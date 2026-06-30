@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,8 +13,9 @@ from .paths import ensure_parent
 
 def connect(path: Path) -> sqlite3.Connection:
     ensure_parent(path)
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout = 30000")
     init_db(conn)
     return conn
 
@@ -80,6 +82,7 @@ def init_db(conn: sqlite3.Connection) -> None:
 
         CREATE TABLE IF NOT EXISTS session_catalog (
             source_path TEXT PRIMARY KEY,
+            source TEXT,
             session_id TEXT NOT NULL,
             project_path TEXT,
             started_at TEXT,
@@ -139,9 +142,336 @@ def init_db(conn: sqlite3.Connection) -> None:
             created_at TEXT,
             FOREIGN KEY (job_id) REFERENCES llm_jobs(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS sync_files (
+            source TEXT NOT NULL,
+            path TEXT NOT NULL,
+            mtime REAL NOT NULL,
+            content_hash TEXT NOT NULL,
+            last_seen_at TEXT NOT NULL,
+            PRIMARY KEY (source, path)
+        );
+
+        CREATE TABLE IF NOT EXISTS import_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source TEXT NOT NULL,
+            root_path TEXT NOT NULL,
+            scanned INTEGER NOT NULL,
+            imported INTEGER NOT NULL,
+            skipped INTEGER NOT NULL,
+            failed INTEGER NOT NULL,
+            started_at TEXT NOT NULL,
+            finished_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS import_errors (
+            run_id INTEGER NOT NULL,
+            path TEXT NOT NULL,
+            message TEXT NOT NULL,
+            FOREIGN KEY (run_id) REFERENCES import_runs(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS watch_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source TEXT NOT NULL,
+            path TEXT NOT NULL,
+            scope TEXT,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            last_sync_at TEXT,
+            last_imported INTEGER NOT NULL DEFAULT 0,
+            last_skipped INTEGER NOT NULL DEFAULT 0,
+            last_failed INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT,
+            UNIQUE(source, path)
+        );
+
+        CREATE TABLE IF NOT EXISTS watch_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            watch_source_id INTEGER NOT NULL,
+            event_type TEXT NOT NULL,
+            message TEXT NOT NULL,
+            imported INTEGER NOT NULL DEFAULT 0,
+            skipped INTEGER NOT NULL DEFAULT 0,
+            failed INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (watch_source_id) REFERENCES watch_sources(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS generated_reports (
+            id TEXT PRIMARY KEY,
+            kind TEXT NOT NULL,
+            session_id TEXT,
+            project_path TEXT,
+            title TEXT NOT NULL,
+            html_path TEXT,
+            markdown_path TEXT,
+            json_path TEXT,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS artifact_exports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            artifact_type TEXT NOT NULL,
+            improvement_id INTEGER,
+            target_path TEXT NOT NULL,
+            status TEXT NOT NULL,
+            conflict_policy TEXT,
+            error TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (improvement_id) REFERENCES improvements(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS analysis_examples (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_type TEXT NOT NULL,
+            source_id TEXT NOT NULL,
+            label TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_analysis_examples_source
+            ON analysis_examples(source_type, source_id);
+        CREATE INDEX IF NOT EXISTS idx_analysis_examples_label
+            ON analysis_examples(label);
+
+        CREATE TABLE IF NOT EXISTS judge_failures (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            workflow_version TEXT NOT NULL,
+            source_id TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_judge_failures_workflow
+            ON judge_failures(workflow_version, source_id);
+
+        CREATE TABLE IF NOT EXISTS prompt_versions (
+            version TEXT PRIMARY KEY,
+            workflow_version TEXT NOT NULL,
+            prompts_json TEXT NOT NULL,
+            schema_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS raw_artifacts (
+            artifact_id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            source_type TEXT NOT NULL,
+            source_path TEXT NOT NULL,
+            content_hash TEXT,
+            mtime REAL,
+            size_bytes INTEGER,
+            ingest_run_id TEXT,
+            first_seen_at TEXT,
+            last_seen_at TEXT,
+            FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_raw_artifacts_session ON raw_artifacts(session_id);
+
+        CREATE TABLE IF NOT EXISTS raw_records (
+            raw_record_id TEXT PRIMARY KEY,
+            artifact_id TEXT NOT NULL,
+            session_id TEXT NOT NULL,
+            provider_record_id TEXT,
+            physical_index INTEGER,
+            raw_json TEXT NOT NULL,
+            raw_text_preview TEXT,
+            raw_hash TEXT,
+            created_at TEXT,
+            FOREIGN KEY (artifact_id) REFERENCES raw_artifacts(artifact_id) ON DELETE CASCADE,
+            FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_raw_records_session ON raw_records(session_id);
+        CREATE INDEX IF NOT EXISTS idx_raw_records_artifact ON raw_records(artifact_id);
+
+        CREATE TABLE IF NOT EXISTS turns (
+            turn_id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            turn_index INTEGER NOT NULL,
+            initiator TEXT,
+            phase_hint TEXT,
+            started_at TEXT,
+            ended_at TEXT,
+            parent_turn_id TEXT,
+            source_refs TEXT,
+            FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_turns_session ON turns(session_id, turn_index);
+
+        CREATE TABLE IF NOT EXISTS normalized_events (
+            event_id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            turn_id TEXT NOT NULL,
+            event_index INTEGER NOT NULL,
+            role TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            phase TEXT NOT NULL,
+            created_at TEXT,
+            source_ref TEXT NOT NULL,
+            text_excerpt TEXT,
+            user_input_text TEXT,
+            raw_record_ids TEXT,
+            metadata_json TEXT,
+            FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
+            FOREIGN KEY (turn_id) REFERENCES turns(turn_id) ON DELETE CASCADE
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_normalized_events_source_ref
+            ON normalized_events(session_id, source_ref);
+        CREATE INDEX IF NOT EXISTS idx_normalized_events_turn
+            ON normalized_events(turn_id, event_index);
+        CREATE INDEX IF NOT EXISTS idx_normalized_events_phase
+            ON normalized_events(session_id, phase);
+
+        CREATE TABLE IF NOT EXISTS tool_calls (
+            tool_call_id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            turn_id TEXT NOT NULL,
+            tool_name TEXT,
+            command TEXT,
+            arguments_json TEXT,
+            cwd TEXT,
+            started_at TEXT,
+            status TEXT,
+            FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
+            FOREIGN KEY (event_id) REFERENCES normalized_events(event_id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_tool_calls_session ON tool_calls(session_id);
+
+        CREATE TABLE IF NOT EXISTS tool_results (
+            tool_result_id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            tool_call_id TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            exit_code INTEGER,
+            stdout_preview TEXT,
+            stderr_preview TEXT,
+            duration_ms INTEGER,
+            status TEXT,
+            error_type TEXT,
+            output_hash TEXT,
+            FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
+            FOREIGN KEY (tool_call_id) REFERENCES tool_calls(tool_call_id) ON DELETE CASCADE,
+            FOREIGN KEY (event_id) REFERENCES normalized_events(event_id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_tool_results_session ON tool_results(session_id);
+
+        CREATE TABLE IF NOT EXISTS file_refs (
+            file_ref_id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            path TEXT NOT NULL,
+            path_role TEXT,
+            line_start INTEGER,
+            line_end INTEGER,
+            language TEXT,
+            operation TEXT,
+            FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
+            FOREIGN KEY (event_id) REFERENCES normalized_events(event_id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_file_refs_session ON file_refs(session_id);
+        CREATE INDEX IF NOT EXISTS idx_file_refs_path ON file_refs(path);
+
+        CREATE TABLE IF NOT EXISTS test_refs (
+            test_ref_id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            tool_call_id TEXT,
+            command TEXT,
+            framework TEXT,
+            status TEXT,
+            failure_count INTEGER,
+            summary TEXT,
+            FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
+            FOREIGN KEY (event_id) REFERENCES normalized_events(event_id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_test_refs_session ON test_refs(session_id);
+
+        CREATE TABLE IF NOT EXISTS error_refs (
+            error_ref_id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            tool_call_id TEXT,
+            error_type TEXT,
+            message TEXT,
+            stack_preview TEXT,
+            is_recovered INTEGER,
+            FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
+            FOREIGN KEY (event_id) REFERENCES normalized_events(event_id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_error_refs_session ON error_refs(session_id);
+        CREATE INDEX IF NOT EXISTS idx_error_refs_type ON error_refs(error_type);
+
+        CREATE TABLE IF NOT EXISTS user_corrections (
+            correction_id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            turn_id TEXT NOT NULL,
+            correction_type TEXT,
+            target_event_ids TEXT,
+            summary TEXT,
+            FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE,
+            FOREIGN KEY (event_id) REFERENCES normalized_events(event_id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_user_corrections_session ON user_corrections(session_id);
+
+        CREATE TABLE IF NOT EXISTS transcript_edges (
+            edge_id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            from_type TEXT NOT NULL,
+            from_id TEXT NOT NULL,
+            to_type TEXT NOT NULL,
+            to_id TEXT NOT NULL,
+            relation TEXT NOT NULL,
+            confidence REAL,
+            created_at TEXT,
+            FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_transcript_edges_from
+            ON transcript_edges(session_id, from_type, from_id);
+        CREATE INDEX IF NOT EXISTS idx_transcript_edges_to
+            ON transcript_edges(session_id, to_type, to_id);
+
+        CREATE TABLE IF NOT EXISTS normalization_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            graph_schema_version TEXT NOT NULL,
+            normalizer_version TEXT NOT NULL,
+            raw_record_count INTEGER NOT NULL,
+            event_count INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_normalization_runs_session ON normalization_runs(session_id);
         """
     )
     ensure_session_design_columns(conn)
+    ensure_session_catalog_columns(conn)
+    ensure_normalized_event_columns(conn)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_session_catalog_source ON session_catalog(source)")
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_id ON sessions(id)")
     init_event_search(conn)
     conn.commit()
@@ -158,24 +488,88 @@ SESSION_DESIGN_COLUMNS = (
     ("raw_hash", "TEXT"),
 )
 
+NORMALIZED_EVENT_COLUMNS = (
+    ("user_input_text", "TEXT"),
+)
+
+SESSION_CATALOG_COLUMNS = (
+    ("source", "TEXT"),
+)
+
 
 def ensure_session_design_columns(conn: sqlite3.Connection) -> None:
     existing = table_columns(conn, "sessions")
     for name, ddl in SESSION_DESIGN_COLUMNS:
         if name not in existing:
             conn.execute(f"ALTER TABLE sessions ADD COLUMN {name} {ddl}")
-    conn.execute("UPDATE sessions SET id = session_id WHERE id IS NULL OR id = ''")
-    conn.execute("UPDATE sessions SET source = tool WHERE source IS NULL OR source = ''")
+    _backfill_sessions_column(conn, "id", "session_id")
+    _backfill_sessions_column(conn, "source", "tool")
+    _backfill_sessions_column(conn, "transcript_path", "source_path")
+    _backfill_sessions_column(conn, "ended_at", "updated_at")
+    _backfill_sessions_column(conn, "status", "'unknown'")
+
+
+def ensure_session_catalog_columns(conn: sqlite3.Connection) -> None:
+    existing = table_columns(conn, "session_catalog")
+    for name, ddl in SESSION_CATALOG_COLUMNS:
+        if name not in existing:
+            conn.execute(f"ALTER TABLE session_catalog ADD COLUMN {name} {ddl}")
     conn.execute(
-        "UPDATE sessions SET transcript_path = source_path WHERE transcript_path IS NULL OR transcript_path = ''"
+        """
+        UPDATE session_catalog
+        SET source = 'claude-code'
+        WHERE (source IS NULL OR source = '')
+          AND source_path LIKE '%/.claude/projects/%'
+        """
     )
-    conn.execute("UPDATE sessions SET ended_at = updated_at WHERE ended_at IS NULL OR ended_at = ''")
-    conn.execute("UPDATE sessions SET status = 'unknown' WHERE status IS NULL OR status = ''")
+    conn.execute(
+        """
+        UPDATE session_catalog
+        SET source = 'codex'
+        WHERE (source IS NULL OR source = '')
+          AND source_path LIKE '%/.codex/%'
+        """
+    )
+
+
+def ensure_normalized_event_columns(conn: sqlite3.Connection) -> None:
+    existing = table_columns(conn, "normalized_events")
+    for name, ddl in NORMALIZED_EVENT_COLUMNS:
+        if name not in existing:
+            conn.execute(f"ALTER TABLE normalized_events ADD COLUMN {name} {ddl}")
+
+
+def _backfill_sessions_column(conn: sqlite3.Connection, column: str, expression: str) -> None:
+    missing = conn.execute(
+        f"SELECT 1 FROM sessions WHERE {column} IS NULL OR {column} = '' LIMIT 1"
+    ).fetchone()
+    if missing:
+        conn.execute(f"UPDATE sessions SET {column} = {expression} WHERE {column} IS NULL OR {column} = ''")
 
 
 def table_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
     rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
     return {row["name"] for row in rows}
+
+
+def get_setting(conn: sqlite3.Connection, key: str) -> str | None:
+    row = conn.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
+    return str(row["value"]) if row else None
+
+
+def set_setting(conn: sqlite3.Connection, key: str, value: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        """
+        INSERT INTO app_settings(key, value, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+            value = excluded.value,
+            updated_at = excluded.updated_at
+        """,
+        (key, value, now),
+    )
+    conn.commit()
 
 
 def init_event_search(conn: sqlite3.Connection) -> None:
@@ -256,7 +650,7 @@ def transcript_raw_hash(parsed: ParsedTranscript) -> str:
     return digest.hexdigest()
 
 
-def save_transcript(conn: sqlite3.Connection, parsed: ParsedTranscript) -> None:
+def save_transcript(conn: sqlite3.Connection, parsed: ParsedTranscript, *, commit: bool = True) -> None:
     now = now_utc()
     session = parsed.session
     design = session_design_values(parsed)
@@ -335,7 +729,11 @@ def save_transcript(conn: sqlite3.Connection, parsed: ParsedTranscript) -> None:
         ],
     )
     insert_events_into_search(conn, parsed.events)
-    conn.commit()
+    from .transcript_graph import save_transcript_graph
+
+    save_transcript_graph(conn, parsed, commit=False)
+    if commit:
+        conn.commit()
 
 
 def latest_session(conn: sqlite3.Connection) -> SessionRecord | None:
@@ -373,11 +771,12 @@ def save_catalog_entries(conn: sqlite3.Connection, entries: list[CatalogEntry]) 
     conn.executemany(
         """
         INSERT INTO session_catalog (
-            source_path, session_id, project_path, started_at, updated_at,
+            source_path, source, session_id, project_path, started_at, updated_at,
             model, title, file_size, cataloged_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(source_path) DO UPDATE SET
+            source = excluded.source,
             session_id = excluded.session_id,
             project_path = excluded.project_path,
             started_at = excluded.started_at,
@@ -390,6 +789,7 @@ def save_catalog_entries(conn: sqlite3.Connection, entries: list[CatalogEntry]) 
         [
             (
                 entry.source_path,
+                entry.source,
                 entry.session_id,
                 entry.project_path,
                 entry.started_at,
@@ -412,18 +812,31 @@ def count_catalog_entries(conn: sqlite3.Connection) -> int:
 
 
 def list_catalog_projects(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    return list_catalog_projects_for_source(conn)
+
+
+def list_catalog_projects_for_source(conn: sqlite3.Connection, source: str | None = None) -> list[sqlite3.Row]:
+    clauses: list[str] = []
+    params: list[Any] = []
+    if source:
+        clauses.append("source = ?")
+        params.append(source)
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     return list(
         conn.execute(
-            """
+            f"""
             SELECT
                 COALESCE(project_path, '(unknown)') AS project_path,
                 COUNT(*) AS session_count,
                 MAX(updated_at) AS latest_at,
-                SUM(file_size) AS total_bytes
+                SUM(file_size) AS total_bytes,
+                GROUP_CONCAT(DISTINCT COALESCE(source, 'catalog')) AS sources
             FROM session_catalog
+            {where}
             GROUP BY COALESCE(project_path, '(unknown)')
             ORDER BY latest_at DESC, session_count DESC, project_path ASC
-            """
+            """,
+            params,
         ).fetchall()
     )
 
@@ -432,16 +845,27 @@ def list_catalog_entries(
     conn: sqlite3.Connection,
     *,
     project_path: str | None = None,
+    session_id: str | None = None,
+    source: str | None = None,
     limit: int | None = None,
 ) -> list[sqlite3.Row]:
     sql = "SELECT * FROM session_catalog"
+    clauses: list[str] = []
     params: list[Any] = []
     if project_path is not None:
         if project_path == "(unknown)":
-            sql += " WHERE project_path IS NULL OR project_path = ''"
+            clauses.append("(project_path IS NULL OR project_path = '')")
         else:
-            sql += " WHERE project_path = ?"
+            clauses.append("project_path = ?")
             params.append(project_path)
+    if session_id is not None:
+        clauses.append("session_id = ?")
+        params.append(session_id)
+    if source is not None:
+        clauses.append("source = ?")
+        params.append(source)
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
     sql += " ORDER BY COALESCE(updated_at, started_at, cataloged_at) DESC"
     if limit is not None:
         sql += " LIMIT ?"
@@ -449,23 +873,47 @@ def list_catalog_entries(
     return list(conn.execute(sql, params).fetchall())
 
 
-def list_sessions(conn: sqlite3.Connection, since: str | None = None) -> list[SessionRecord]:
+def list_session_projects(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    return list(
+        conn.execute(
+            """
+            SELECT
+                COALESCE(NULLIF(project_path, ''), '(unknown)') AS project_path,
+                COUNT(*) AS session_count,
+                SUM(command_count) AS command_count,
+                SUM(error_count) AS error_count,
+                MAX(COALESCE(updated_at, ingested_at)) AS latest_at,
+                GROUP_CONCAT(DISTINCT COALESCE(source, tool)) AS sources
+            FROM sessions
+            GROUP BY COALESCE(NULLIF(project_path, ''), '(unknown)')
+            ORDER BY latest_at DESC, session_count DESC, project_path ASC
+            """
+        ).fetchall()
+    )
+
+
+def list_sessions(
+    conn: sqlite3.Connection,
+    since: str | None = None,
+    *,
+    project_path: str | None = None,
+) -> list[SessionRecord]:
+    clauses: list[str] = []
+    params: list[Any] = []
     if since:
-        rows = conn.execute(
-            """
-            SELECT * FROM sessions
-            WHERE COALESCE(updated_at, ingested_at) >= ?
-            ORDER BY COALESCE(updated_at, ingested_at) DESC
-            """,
-            (since,),
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            """
-            SELECT * FROM sessions
-            ORDER BY COALESCE(updated_at, ingested_at) DESC
-            """
-        ).fetchall()
+        clauses.append("COALESCE(updated_at, ingested_at) >= ?")
+        params.append(since)
+    if project_path is not None:
+        if project_path == "(unknown)":
+            clauses.append("(project_path IS NULL OR project_path = '')")
+        else:
+            clauses.append("project_path = ?")
+            params.append(project_path)
+    sql = "SELECT * FROM sessions"
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
+    sql += " ORDER BY COALESCE(updated_at, ingested_at) DESC"
+    rows = conn.execute(sql, params).fetchall()
     return [row_to_session(row) for row in rows]
 
 
@@ -782,6 +1230,70 @@ def update_improvement_status(conn: sqlite3.Connection, ids: list[int], status: 
         changed += cursor.rowcount
     conn.commit()
     return changed
+
+
+def record_analysis_feedback(
+    conn: sqlite3.Connection,
+    *,
+    source_type: str,
+    source_id: str,
+    label: str,
+    payload: dict[str, Any],
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO analysis_examples (source_type, source_id, label, payload_json, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (source_type, source_id, label, json.dumps(payload, ensure_ascii=False, sort_keys=True), now_utc()),
+    )
+    conn.commit()
+
+
+def record_judge_failure(
+    conn: sqlite3.Connection,
+    *,
+    workflow_version: str,
+    source_id: str,
+    reason: str,
+    payload: dict[str, Any],
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO judge_failures (workflow_version, source_id, reason, payload_json, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (workflow_version, source_id, reason, json.dumps(payload, ensure_ascii=False, sort_keys=True), now_utc()),
+    )
+    conn.commit()
+
+
+def record_prompt_version(
+    conn: sqlite3.Connection,
+    *,
+    version: str,
+    workflow_version: str,
+    prompts: dict[str, Any],
+    schema: dict[str, Any],
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO prompt_versions (version, workflow_version, prompts_json, schema_json, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(version) DO UPDATE SET
+            workflow_version = excluded.workflow_version,
+            prompts_json = excluded.prompts_json,
+            schema_json = excluded.schema_json
+        """,
+        (
+            version,
+            workflow_version,
+            json.dumps(prompts, ensure_ascii=False, sort_keys=True),
+            json.dumps(schema, ensure_ascii=False, sort_keys=True),
+            now_utc(),
+        ),
+    )
+    conn.commit()
 
 
 def row_to_session(row: sqlite3.Row) -> SessionRecord:

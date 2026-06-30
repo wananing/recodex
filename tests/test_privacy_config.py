@@ -139,6 +139,30 @@ class PrivacyTests(unittest.TestCase):
         self.assertIn("[REDACTED:HOME]/.ssh/id_rsa", redacted)
         self.assertNotIn("/home/alice", redacted)
 
+    def test_redact_text_replaces_private_urls(self) -> None:
+        redacted = redact_text(
+            "Call http://140.143.206.118:29898/car-api/private/report and "
+            "http://192.168.1.10:8080/internal before shipping. "
+            "spring.datasource.url=jdbc:postgresql://140.143.206.118:55345/smart_data "
+            "rg -n \"140\\.143\\.206\\.118|29898\" ."
+        )
+
+        self.assertIn("[REDACTED:URL]", redacted)
+        self.assertIn("[REDACTED:DATABASE_URL]", redacted)
+        self.assertIn("[REDACTED:IP_PATTERN]", redacted)
+        self.assertNotIn("140.143.206.118", redacted)
+        self.assertNotIn("140\\.143\\.206\\.118", redacted)
+        self.assertNotIn("192.168.1.10", redacted)
+        self.assertNotIn("29898", redacted)
+
+    def test_redact_text_replaces_system_context_blocks(self) -> None:
+        redacted = redact_text(
+            "<permissions instructions> Filesystem sandboxing defines which files can be read or written. "
+            "`sandbox_mode` is `workspace-write`."
+        )
+
+        self.assertEqual(redacted, "[REDACTED:CONTEXT]")
+
     def test_redact_mapping_redacts_nested_sensitive_values(self) -> None:
         redacted = redact_mapping(
             {

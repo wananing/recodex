@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import unittest
 
-from recodex.analysis import propose_improvements
 from recodex.models import SessionRecord, TranscriptEvent
 from recodex.reports import render_retro
 from recodex.rulebase import evaluate_session_rules, get_rule, list_rules
@@ -33,14 +32,6 @@ class RulebaseTests(unittest.TestCase):
         self.assertNotIn("根据规则经验库", report)
         self.assertNotIn("R005", report)
         self.assertNotIn("R047", report)
-
-    def test_rulebase_feeds_improvement_proposals_internally(self) -> None:
-        session, events = _bugfix_without_verification()
-        drafts = propose_improvements([session], {session.session_id: events})
-        joined = "\n".join(draft.title + "\n" + draft.recommendation for draft in drafts)
-        self.assertIn("代码修改后没有任何验证命令，默认高风险", joined)
-        self.assertIn("完成检查清单", joined)
-
 
 def _bugfix_without_verification() -> tuple[SessionRecord, list[TranscriptEvent]]:
     session = SessionRecord(

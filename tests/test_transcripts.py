@@ -52,6 +52,9 @@ class TranscriptParsingTests(unittest.TestCase):
             self.assertGreaterEqual(parsed.session.command_count, 1)
             self.assertGreaterEqual(parsed.session.error_count, 1)
             self.assertIn("Please run the tests", parsed.session.title)
+            self.assertGreater(parsed.events[0].metadata["byte_start"], 0)
+            self.assertGreater(parsed.events[0].metadata["byte_end"], 0)
+            self.assertEqual(parsed.events[0].metadata["physical_line"], 2)
 
     def test_parse_plain_text_with_roles(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -71,4 +74,3 @@ class TranscriptParsingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

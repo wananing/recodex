@@ -1,0 +1,1736 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Recodex AI coding analysis dashboard" />
+  <title>Recodex — Analyze Codebase</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f9fc;
+      --panel: rgba(255, 255, 255, 0.88);
+      --panel-solid: #ffffff;
+      --border: #dbe3ec;
+      --border-strong: #ccd6e2;
+      --text: #111827;
+      --text-2: #3d4b61;
+      --muted: #6c7a90;
+      --muted-2: #93a0b2;
+      --blue: #2d83f4;
+      --blue-2: #4b9cff;
+      --blue-soft: #eaf4ff;
+      --green: #24b966;
+      --green-soft: #eaf9f0;
+      --orange: #f28c18;
+      --orange-soft: #fff4e8;
+      --red: #ef4444;
+      --purple: #9258eb;
+      --purple-soft: #f5edff;
+      --ink: #080c12;
+      --console: #07101c;
+      --shadow: 0 1px 2px rgba(21, 41, 68, 0.04), 0 8px 26px rgba(58, 85, 116, 0.045);
+      --shadow-raised: 0 8px 24px rgba(16, 31, 50, 0.09), 0 2px 6px rgba(16, 31, 50, 0.05);
+      --radius: 10px;
+      --sidebar-width: 228px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1100px 580px at 64% 4%, rgba(221, 240, 255, 0.78), transparent 62%),
+        linear-gradient(180deg, #fbfdff 0%, var(--bg) 100%);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
+    }
+
+    body {
+      overflow-x: auto;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+    }
+
+    .icon {
+      width: 18px;
+      height: 18px;
+      display: inline-block;
+      flex: 0 0 auto;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .icon.sm {
+      width: 15px;
+      height: 15px;
+    }
+
+    .icon.xs {
+      width: 13px;
+      height: 13px;
+    }
+
+    .app-shell {
+      min-height: 100vh;
+      min-width: 1180px;
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    }
+
+    .sidebar {
+      min-height: 100vh;
+      padding: 20px 14px 18px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(216, 226, 237, 0.9);
+      background: rgba(249, 252, 255, 0.72);
+      backdrop-filter: blur(18px);
+      position: sticky;
+      top: 0;
+      align-self: start;
+    }
+
+    .brand {
+      width: 42px;
+      height: 42px;
+      margin-left: 2px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, #111821, #030507);
+      color: #fff;
+      font-size: 22px;
+      line-height: 1;
+      font-weight: 730;
+      letter-spacing: -0.06em;
+      box-shadow: 0 2px 7px rgba(8, 14, 24, 0.24), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    }
+
+    .nav {
+      margin-top: 22px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .nav-item {
+      width: 100%;
+      height: 49px;
+      padding: 0 12px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #14223a;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+      font-size: 14px;
+      font-weight: 560;
+      transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+    }
+
+    .nav-item:hover {
+      background: rgba(232, 241, 250, 0.65);
+    }
+
+    .nav-item:active {
+      transform: translateY(1px);
+    }
+
+    .nav-item.active {
+      color: #196ad0;
+      background: linear-gradient(90deg, rgba(228, 241, 255, 0.98), rgba(233, 244, 255, 0.78));
+    }
+
+    .sidebar-spacer {
+      flex: 1;
+      min-height: 42px;
+    }
+
+    .system-card {
+      padding: 15px 12px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.64);
+      box-shadow: 0 2px 10px rgba(53, 80, 110, 0.02);
+    }
+
+    .system-heading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      font-weight: 650;
+      color: #29374b;
+    }
+
+    .status-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(36, 185, 102, 0.08);
+      flex: 0 0 auto;
+    }
+
+    .system-copy {
+      margin: 6px 0 12px 21px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .status-button {
+      width: 100%;
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.9);
+      color: #253146;
+      font-size: 12px;
+      font-weight: 580;
+      cursor: pointer;
+      transition: border-color 150ms ease, box-shadow 150ms ease;
+    }
+
+    .status-button:hover {
+      border-color: #b8c7d7;
+      box-shadow: 0 4px 12px rgba(42, 68, 98, 0.06);
+    }
+
+    .version {
+      margin: 34px 12px 0;
+      color: #6f7b90;
+      font-size: 12px;
+    }
+
+    .app-main {
+      min-width: 0;
+      padding: 24px 24px 17px 28px;
+    }
+
+    .page-header {
+      height: 62px;
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      font-weight: 720;
+      color: #11151b;
+    }
+
+    .page-subtitle {
+      margin: 6px 0 0;
+      color: #69768a;
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: minmax(760px, 1fr) 300px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .workspace-main {
+      min-width: 0;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .prompt-card {
+      height: 74px;
+      border-radius: 10px;
+      padding: 0 16px 0 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .prompt-lead {
+      color: #78879b;
+      transform: rotate(-8deg);
+    }
+
+    .prompt-input {
+      min-width: 0;
+      flex: 1;
+      height: 100%;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: #273449;
+      font-size: 17px;
+      font-weight: 420;
+      letter-spacing: -0.01em;
+    }
+
+    .prompt-input::placeholder {
+      color: #758399;
+      opacity: 1;
+    }
+
+    .prompt-tools {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .tool-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: transparent;
+      color: #627188;
+      cursor: pointer;
+      transition: background 150ms ease, color 150ms ease;
+    }
+
+    .tool-icon:hover {
+      background: #f1f6fb;
+      color: #314259;
+    }
+
+    .shortcut {
+      min-width: 61px;
+      height: 34px;
+      border: 1px solid #e1e7ee;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: #65748b;
+      background: rgba(255, 255, 255, 0.82);
+      font-size: 13px;
+      box-shadow: 0 1px 2px rgba(22, 41, 65, 0.02);
+    }
+
+    .selector-row {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .selector {
+      position: relative;
+    }
+
+    .selector-button {
+      width: 100%;
+      height: 58px;
+      padding: 9px 14px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr) 14px;
+      column-gap: 10px;
+      align-items: end;
+      text-align: left;
+      color: #1e293b;
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: 0 1px 3px rgba(35, 55, 78, 0.025);
+      cursor: pointer;
+      transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+    }
+
+    .selector-button:hover,
+    .selector.open .selector-button {
+      border-color: #b9c9d9;
+      box-shadow: 0 6px 18px rgba(34, 61, 91, 0.07);
+    }
+
+    .selector-button:active {
+      transform: translateY(1px);
+    }
+
+    .selector-button > .icon {
+      align-self: end;
+      margin-bottom: 2px;
+      color: #40536d;
+    }
+
+    .selector-copy {
+      min-width: 0;
+      align-self: stretch;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .selector-label {
+      color: #607089;
+      font-size: 11px;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+
+    .selector-value {
+      min-width: 0;
+      color: #1d2839;
+      font-size: 13px;
+      line-height: 1.1;
+      font-weight: 610;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chevron {
+      align-self: end;
+      margin-bottom: 4px;
+      color: #4c607a;
+      transition: transform 150ms ease;
+    }
+
+    .selector.open .chevron {
+      transform: rotate(180deg);
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      z-index: 20;
+      top: calc(100% + 7px);
+      left: 0;
+      right: 0;
+      padding: 6px;
+      border: 1px solid #d7e0e9;
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.98);
+      box-shadow: var(--shadow-raised);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-4px) scale(0.99);
+      transform-origin: top center;
+      transition: opacity 140ms ease, transform 140ms ease;
+    }
+
+    .selector.open .dropdown-menu {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+
+    .dropdown-option {
+      width: 100%;
+      height: 36px;
+      padding: 0 10px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      color: #243248;
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    .dropdown-option:hover,
+    .dropdown-option.selected {
+      color: #1769c9;
+      background: #eef6ff;
+    }
+
+    .action-row {
+      margin-top: 17px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .action-button {
+      height: 40px;
+      padding: 0 24px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.88);
+      color: #172236;
+      font-size: 13px;
+      font-weight: 610;
+      cursor: pointer;
+      box-shadow: 0 1px 2px rgba(31, 51, 77, 0.02);
+      transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+    }
+
+    .action-button:hover {
+      border-color: #b9c7d7;
+      box-shadow: 0 5px 15px rgba(29, 57, 87, 0.06);
+    }
+
+    .action-button:active {
+      transform: translateY(1px);
+    }
+
+    .action-button.primary {
+      min-width: 164px;
+      color: #fff;
+      border-color: #090d13;
+      background: linear-gradient(180deg, #111822 0%, #06090e 100%);
+      box-shadow: 0 4px 10px rgba(4, 8, 14, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .action-button.primary:hover {
+      background: linear-gradient(180deg, #19222e 0%, #0b0f16 100%);
+      box-shadow: 0 7px 18px rgba(4, 8, 14, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .action-button.is-running {
+      pointer-events: none;
+      opacity: 0.88;
+    }
+
+    .spinner {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.34);
+      border-top-color: #fff;
+      animation: spin 800ms linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .metrics-card {
+      height: 91px;
+      margin-top: 18px;
+      border-radius: 9px;
+      padding: 14px 8px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .metric {
+      min-width: 0;
+      position: relative;
+      padding: 0 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 38px;
+      grid-template-rows: auto auto auto;
+      column-gap: 10px;
+      align-content: center;
+    }
+
+    .metric:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: 2px;
+      bottom: 2px;
+      width: 1px;
+      background: #e5eaf0;
+    }
+
+    .metric-label {
+      grid-column: 1;
+      color: #617087;
+      font-size: 11px;
+      line-height: 1.1;
+    }
+
+    .metric-value {
+      grid-column: 1;
+      margin-top: 6px;
+      color: #101820;
+      font-size: 20px;
+      line-height: 1;
+      font-weight: 720;
+      letter-spacing: -0.02em;
+    }
+
+    .metric-trend {
+      grid-column: 1;
+      margin-top: 7px;
+      color: #6f7d90;
+      font-size: 11px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .metric-trend strong {
+      margin-right: 4px;
+      font-weight: 700;
+    }
+
+    .trend-up {
+      color: var(--green);
+    }
+
+    .trend-down {
+      color: var(--blue);
+    }
+
+    .metric-icon {
+      grid-column: 2;
+      grid-row: 1 / span 3;
+      align-self: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #5a6d85;
+      background: #f4f6f9;
+    }
+
+    .metric-icon.blue {
+      color: var(--blue);
+      background: #eaf4ff;
+    }
+
+    .workflow-card {
+      min-height: 242px;
+      margin-top: 14px;
+      padding: 12px 12px 10px;
+      border-radius: 9px;
+    }
+
+    .workflow-header {
+      height: 34px;
+      padding: 0 2px 0 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .workflow-title-group,
+    .workflow-controls {
+      display: flex;
+      align-items: center;
+    }
+
+    .workflow-title-group {
+      gap: 11px;
+    }
+
+    .workflow-title {
+      margin: 0;
+      color: #141c27;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .live-pill {
+      height: 28px;
+      padding: 0 12px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #273349;
+      background: #f1f4f7;
+      font-size: 12px;
+      font-weight: 560;
+    }
+
+    .live-pill .status-dot {
+      width: 9px;
+      height: 9px;
+      box-shadow: none;
+    }
+
+    .workflow-controls {
+      gap: 14px;
+    }
+
+    .auto-label {
+      color: #6b7890;
+      font-size: 12px;
+    }
+
+    .toggle {
+      width: 34px;
+      height: 19px;
+      padding: 2px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      background: var(--blue-2);
+      cursor: pointer;
+      box-shadow: inset 0 1px 2px rgba(14, 62, 117, 0.18);
+      transition: background 180ms ease;
+    }
+
+    .toggle .knob {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(24, 47, 76, 0.24);
+      transform: translateX(0);
+      transition: transform 180ms ease;
+    }
+
+    .toggle.off {
+      justify-content: flex-start;
+      background: #c7d0db;
+    }
+
+    .detail-button {
+      height: 34px;
+      padding: 0 15px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: #243044;
+      background: rgba(255, 255, 255, 0.9);
+      font-size: 12px;
+      font-weight: 580;
+      cursor: pointer;
+    }
+
+    .workflow-track {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: minmax(138px, 1fr) 38px minmax(138px, 1fr) 38px minmax(138px, 1fr) 38px minmax(138px, 1fr) 38px minmax(138px, 1fr);
+      align-items: center;
+    }
+
+    .workflow-step {
+      min-width: 0;
+      height: 104px;
+      padding: 12px 12px 10px;
+      border: 1px solid #dce4ed;
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: 0 1px 3px rgba(31, 55, 83, 0.02);
+      display: grid;
+      grid-template-rows: 23px 1fr 13px;
+      transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    }
+
+    .workflow-step.active {
+      border-color: #c9ddf4;
+      box-shadow: 0 5px 16px rgba(47, 111, 183, 0.07);
+    }
+
+    .workflow-step.complete {
+      border-color: #cfdfed;
+    }
+
+    .step-heading {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #182235;
+    }
+
+    .step-icon {
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      color: #66788f;
+      flex: 0 0 auto;
+    }
+
+    .step-icon.complete {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      color: #fff;
+      background: #48c67f;
+    }
+
+    .step-icon.active {
+      color: var(--blue);
+    }
+
+    .step-title {
+      min-width: 0;
+      flex: 1;
+      font-size: 11px;
+      line-height: 1.1;
+      font-weight: 680;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .step-status {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #919aa7;
+      flex: 0 0 auto;
+    }
+
+    .step-status.green { background: #22b35f; }
+    .step-status.blue { background: #267de6; }
+
+    .step-copy {
+      min-width: 0;
+      padding-top: 6px;
+      color: #27364b;
+      font-size: 11px;
+      line-height: 1.55;
+      overflow: hidden;
+    }
+
+    .step-copy div {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .step-copy .muted-line {
+      color: #35547e;
+    }
+
+    .progress-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .progress-track {
+      height: 4px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #e9edf2;
+    }
+
+    .progress-fill {
+      width: var(--progress, 0%);
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #2f86f7, #6aaaff);
+      transition: width 500ms ease;
+    }
+
+    .progress-value {
+      color: #35465d;
+      font-size: 10px;
+      line-height: 1;
+      min-width: 27px;
+      text-align: right;
+    }
+
+    .connector {
+      position: relative;
+      height: 1px;
+      background: #243041;
+    }
+
+    .connector::after {
+      content: "";
+      position: absolute;
+      right: -1px;
+      top: -3px;
+      width: 6px;
+      height: 6px;
+      border-top: 1px solid #243041;
+      border-right: 1px solid #243041;
+      transform: rotate(45deg);
+    }
+
+    .workflow-summary {
+      min-height: 59px;
+      margin-top: 10px;
+      border: 1px solid #e0e6ee;
+      border-radius: 8px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr)) 1.25fr;
+      align-items: stretch;
+      background: rgba(255, 255, 255, 0.62);
+    }
+
+    .summary-item {
+      position: relative;
+      min-width: 0;
+      padding: 11px 18px 9px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .summary-item:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: 10px;
+      bottom: 10px;
+      width: 1px;
+      background: #e2e7ed;
+    }
+
+    .summary-label {
+      color: #718096;
+      font-size: 10.5px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .summary-value {
+      margin-top: 7px;
+      color: #111820;
+      font-size: 17px;
+      line-height: 1;
+      font-weight: 690;
+      white-space: nowrap;
+    }
+
+    .summary-value small {
+      font-size: 11px;
+      font-weight: 580;
+    }
+
+    .summary-value.green { color: #0fa94f; }
+    .summary-value.orange { color: #f07800; }
+    .summary-value.red { color: #ea3030; }
+
+    .summary-item.estimate {
+      align-items: flex-end;
+      text-align: right;
+    }
+
+    .estimate-value {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .evidence-panel {
+      min-height: 570px;
+      padding: 14px 16px 10px;
+      border-radius: 9px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .evidence-header {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .evidence-title {
+      margin: 0;
+      color: #121821;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .text-link {
+      color: #1672dc;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 580;
+      cursor: pointer;
+    }
+
+    .evidence-list {
+      margin-top: 5px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .evidence-card {
+      min-height: 112px;
+      padding: 12px 12px 10px;
+      border: 1px solid #dce4ec;
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: 0 1px 3px rgba(31, 54, 78, 0.025);
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr);
+      column-gap: 12px;
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .evidence-card:hover {
+      transform: translateY(-1px);
+      border-color: #c5d3e1;
+      box-shadow: 0 7px 18px rgba(38, 64, 92, 0.07);
+    }
+
+    .evidence-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+    }
+
+    .evidence-icon.green { color: #16a851; background: var(--green-soft); }
+    .evidence-icon.orange { color: #f17d00; background: var(--orange-soft); }
+    .evidence-icon.blue { color: #2483ee; background: #edf5ff; }
+    .evidence-icon.purple { color: var(--purple); background: var(--purple-soft); }
+
+    .evidence-body {
+      min-width: 0;
+    }
+
+    .evidence-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .evidence-kind {
+      min-width: 0;
+      color: #31435d;
+      font-size: 10px;
+      line-height: 1.1;
+      font-weight: 720;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .severity {
+      padding: 2px 7px 3px;
+      border-radius: 999px;
+      font-size: 10px;
+      line-height: 1;
+      font-weight: 650;
+      flex: 0 0 auto;
+    }
+
+    .severity.high { color: #149449; background: #e8f8ef; }
+    .severity.medium { color: #c76700; background: #fff2e3; }
+    .severity.info { color: #1672cf; background: #eaf4ff; }
+
+    .evidence-description {
+      margin: 9px 0 0;
+      color: #253249;
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .evidence-meta {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: #748196;
+      font-size: 10.5px;
+      line-height: 1;
+    }
+
+    .meta-dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: #9aa5b3;
+    }
+
+    .evidence-library-button {
+      width: 100%;
+      height: 30px;
+      margin-top: auto;
+      border: 1px solid #dce4ed;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: #29364a;
+      background: rgba(255, 255, 255, 0.75);
+      font-size: 11px;
+      font-weight: 580;
+      cursor: pointer;
+    }
+
+    .console-panel {
+      height: 245px;
+      margin-top: 14px;
+      border: 1px solid #111c29;
+      border-radius: 8px;
+      overflow: hidden;
+      background:
+        radial-gradient(900px 260px at 76% 0%, rgba(27, 62, 96, 0.18), transparent 64%),
+        linear-gradient(180deg, #091321 0%, #060d17 100%);
+      box-shadow: 0 8px 26px rgba(9, 21, 35, 0.1);
+      color: #d6deea;
+    }
+
+    .console-header {
+      height: 31px;
+      padding: 0 16px;
+      border-bottom: 1px solid rgba(138, 162, 190, 0.13);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      color: #e3e9f0;
+      font-size: 11px;
+    }
+
+    .console-title-group,
+    .console-actions {
+      display: flex;
+      align-items: center;
+    }
+
+    .console-title-group {
+      gap: 12px;
+    }
+
+    .console-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: #27c970;
+    }
+
+    .console-live .status-dot {
+      width: 7px;
+      height: 7px;
+      box-shadow: none;
+    }
+
+    .console-actions {
+      gap: 18px;
+      color: #e1e8f1;
+    }
+
+    .console-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: inherit;
+      background: transparent;
+      font-size: 11px;
+      cursor: pointer;
+      opacity: 0.92;
+    }
+
+    .console-action:hover {
+      opacity: 1;
+    }
+
+    .console-separator {
+      width: 1px;
+      height: 15px;
+      background: rgba(255, 255, 255, 0.13);
+    }
+
+    .terminal {
+      height: calc(100% - 31px);
+      padding: 10px 14px 10px;
+      overflow: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #20344b transparent;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 10.8px;
+      line-height: 1.23;
+      letter-spacing: 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .log-line {
+      min-width: 760px;
+      display: grid;
+      grid-template-columns: 68px 52px minmax(0, 1fr);
+      color: #bdc8d6;
+      white-space: nowrap;
+    }
+
+    .log-time {
+      color: #aeb9c7;
+    }
+
+    .log-level {
+      color: #4da0ff;
+      font-weight: 650;
+    }
+
+    .log-level.ok {
+      color: #28d071;
+    }
+
+    .log-message {
+      color: #cbd4df;
+    }
+
+    .log-message.success {
+      color: #45db7f;
+    }
+
+    .log-message.progress {
+      color: #53a8ff;
+    }
+
+    .toast {
+      position: fixed;
+      z-index: 100;
+      right: 22px;
+      bottom: 22px;
+      min-width: 220px;
+      max-width: 360px;
+      padding: 12px 14px;
+      border: 1px solid rgba(187, 202, 219, 0.9);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #26344a;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 12px 34px rgba(29, 55, 85, 0.16);
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(10px);
+      transition: opacity 180ms ease, transform 180ms ease;
+      backdrop-filter: blur(14px);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast .status-dot {
+      width: 9px;
+      height: 9px;
+      box-shadow: none;
+    }
+
+    @media (max-width: 1420px) {
+      :root { --sidebar-width: 210px; }
+      .app-main { padding-left: 22px; padding-right: 20px; }
+      .workspace-grid { grid-template-columns: minmax(700px, 1fr) 286px; gap: 18px; }
+      .selector-row { gap: 12px; }
+      .workflow-track {
+        grid-template-columns: minmax(128px, 1fr) 26px minmax(128px, 1fr) 26px minmax(128px, 1fr) 26px minmax(128px, 1fr) 26px minmax(128px, 1fr);
+      }
+      .metric { padding-left: 14px; padding-right: 14px; }
+    }
+
+    @media (max-width: 1180px) {
+      .app-shell { min-width: 980px; }
+      .workspace-grid { grid-template-columns: 1fr; }
+      .evidence-panel { min-height: auto; }
+      .evidence-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .evidence-library-button { margin-top: 14px; }
+      .console-panel { height: 260px; }
+    }
+  </style>
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-workflow" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="M12 7.2v4M6.8 16.6l3.8-4.6M17.2 16.6 13.4 12"/></symbol>
+    <symbol id="i-bars" viewBox="0 0 24 24"><path d="M5 20V12M12 20V5M19 20v-9"/></symbol>
+    <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M9 9h6M9 13h6"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 13.5v-3l-2-.6a7 7 0 0 0-.8-1.9l1-1.8-2.1-2.1-1.8 1A7 7 0 0 0 11.5 4L11 2H8l-.6 2a7 7 0 0 0-1.9.8l-1.8-1-2.1 2.1 1 1.8A7 7 0 0 0 2 9.5l-2 .5v3l2 .6a7 7 0 0 0 .8 1.9l-1 1.8 2.1 2.1 1.8-1a7 7 0 0 0 1.9.8l.5 2h3l.6-2a7 7 0 0 0 1.9-.8l1.8 1 2.1-2.1-1-1.8a7 7 0 0 0 .5-2Z" transform="translate(2 0) scale(.83)"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m4 4 16 8-16 8 3-8-3-8Z"/><path d="M7 12h10"/></symbol>
+    <symbol id="i-paperclip" viewBox="0 0 24 24"><path d="m9 12 5.7-5.7a3.5 3.5 0 1 1 5 5L11.8 19a5 5 0 0 1-7-7l8-8"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11H3Z"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 9 5 5 5-5"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6Z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 24 24"><path d="m5 17 5-5 4 3 5-8"/><path d="M15 7h4v4"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6Z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m6 12 4 4 8-9"/></symbol>
+    <symbol id="i-loader" viewBox="0 0 24 24"><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><circle cx="5" cy="5" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="19" cy="5" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="19" r="1"/><circle cx="12" cy="19" r="1"/><circle cx="19" cy="19" r="1"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2Z"/></symbol>
+    <symbol id="i-warning" viewBox="0 0 24 24"><path d="M12 3 22 21H2Z"/><path d="M12 9v5M12 17.5v.5"/></symbol>
+    <symbol id="i-pattern" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><circle cx="12" cy="12" r="2"/><path d="m7.5 7.5 3 3M16.5 7.5l-3 3M7.5 16.5l3-3M16.5 16.5l-3-3"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 13v7H4V6h7"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8Z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+    <symbol id="i-at" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M16 12v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3 6.7"/></symbol>
+  </svg>
+
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <div class="brand" aria-label="Recodex">rx</div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-section="Dashboard"><svg class="icon"><use href="#i-home"/></svg><span>Dashboard</span></button>
+        <button class="nav-item" data-section="Sessions"><svg class="icon"><use href="#i-clock"/></svg><span>Sessions</span></button>
+        <button class="nav-item" data-section="Workflow"><svg class="icon"><use href="#i-workflow"/></svg><span>Workflow</span></button>
+        <button class="nav-item" data-section="Reports"><svg class="icon"><use href="#i-bars"/></svg><span>Reports</span></button>
+        <button class="nav-item" data-section="Evidence"><svg class="icon"><use href="#i-clipboard"/></svg><span>Evidence</span></button>
+        <button class="nav-item" data-section="Settings"><svg class="icon"><use href="#i-settings"/></svg><span>Settings</span></button>
+      </nav>
+
+      <div class="sidebar-spacer"></div>
+
+      <section class="system-card">
+        <div class="system-heading"><span class="status-dot"></span><span>System Status</span></div>
+        <p class="system-copy">All systems operational</p>
+        <button class="status-button" data-toast="System health is normal.">View Status</button>
+      </section>
+      <div class="version">Recodex v1.0.3</div>
+    </aside>
+
+    <main class="app-main">
+      <header class="page-header">
+        <h1 class="page-title">Analyze Codebase</h1>
+        <p class="page-subtitle">Run intelligent analysis, surface evidence, and generate audit-ready artifacts.</p>
+      </header>
+
+      <div class="workspace-grid">
+        <section class="workspace-main">
+          <section class="prompt-card panel" aria-label="Analysis prompt">
+            <svg class="icon prompt-lead"><use href="#i-send"/></svg>
+            <input id="analysisPrompt" class="prompt-input" type="text" placeholder="What should we analyze next?" aria-label="What should we analyze next?" />
+            <div class="prompt-tools">
+              <button class="tool-icon" type="button" aria-label="Attach context" data-toast="Context attachment picker opened."><svg class="icon"><use href="#i-paperclip"/></svg></button>
+              <button class="tool-icon" type="button" aria-label="Mention agent" data-toast="Mention an agent or source."><svg class="icon"><use href="#i-at"/></svg></button>
+              <span class="shortcut" aria-label="Command Enter"><span>⌘</span><span>↵</span></span>
+            </div>
+          </section>
+
+          <div class="selector-row">
+            <div class="selector" data-dropdown>
+              <button class="selector-button" type="button" aria-expanded="false">
+                <svg class="icon"><use href="#i-folder"/></svg>
+                <span class="selector-copy"><span class="selector-label">Project</span><span class="selector-value">Acme Platform</span></span>
+                <svg class="icon xs chevron"><use href="#i-chevron"/></svg>
+              </button>
+              <div class="dropdown-menu">
+                <button class="dropdown-option selected" type="button">Acme Platform</button>
+                <button class="dropdown-option" type="button">Payments Core</button>
+                <button class="dropdown-option" type="button">Developer Portal</button>
+              </div>
+            </div>
+
+            <div class="selector" data-dropdown>
+              <button class="selector-button" type="button" aria-expanded="false">
+                <svg class="icon"><use href="#i-clock"/></svg>
+                <span class="selector-copy"><span class="selector-label">Session</span><span class="selector-value">sess_7f3a2c1b</span></span>
+                <svg class="icon xs chevron"><use href="#i-chevron"/></svg>
+              </button>
+              <div class="dropdown-menu">
+                <button class="dropdown-option selected" type="button">sess_7f3a2c1b</button>
+                <button class="dropdown-option" type="button">sess_8ab0fe22</button>
+                <button class="dropdown-option" type="button">sess_d9c451ae</button>
+              </div>
+            </div>
+
+            <div class="selector" data-dropdown>
+              <button class="selector-button" type="button" aria-expanded="false">
+                <svg class="icon"><use href="#i-calendar"/></svg>
+                <span class="selector-copy"><span class="selector-label">Time Range</span><span class="selector-value">Last 7 days</span></span>
+                <svg class="icon xs chevron"><use href="#i-chevron"/></svg>
+              </button>
+              <div class="dropdown-menu">
+                <button class="dropdown-option" type="button">Last 24 hours</button>
+                <button class="dropdown-option selected" type="button">Last 7 days</button>
+                <button class="dropdown-option" type="button">Last 30 days</button>
+              </div>
+            </div>
+
+            <div class="selector" data-dropdown>
+              <button class="selector-button" type="button" aria-expanded="false">
+                <svg class="icon"><use href="#i-target"/></svg>
+                <span class="selector-copy"><span class="selector-label">Analysis Mode</span><span class="selector-value">Deep Audit</span></span>
+                <svg class="icon xs chevron"><use href="#i-chevron"/></svg>
+              </button>
+              <div class="dropdown-menu">
+                <button class="dropdown-option" type="button">Quick Scan</button>
+                <button class="dropdown-option selected" type="button">Deep Audit</button>
+                <button class="dropdown-option" type="button">Evidence Only</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button id="runAnalysis" class="action-button primary" type="button"><svg class="icon sm"><use href="#i-play"/></svg><span>Run Analysis</span></button>
+            <button class="action-button" type="button" data-toast="Review queue opened: 38 items need review."><svg class="icon sm"><use href="#i-list"/></svg><span>Review Queue</span></button>
+            <button class="action-button" type="button" data-toast="Artifact generation is ready after audit completion."><svg class="icon sm"><use href="#i-file"/></svg><span>Generate Artifacts</span></button>
+          </div>
+
+          <section class="metrics-card panel" aria-label="Analysis metrics">
+            <article class="metric">
+              <div class="metric-label">Sessions Analyzed</div>
+              <div class="metric-value">24</div>
+              <div class="metric-trend"><strong class="trend-up">↑ 14%</strong> vs last 7 days</div>
+              <div class="metric-icon"><svg class="icon"><use href="#i-trend"/></svg></div>
+            </article>
+            <article class="metric">
+              <div class="metric-label">Evidence Items</div>
+              <div class="metric-value">186</div>
+              <div class="metric-trend"><strong class="trend-up">↑ 22%</strong> vs last 7 days</div>
+              <div class="metric-icon blue"><svg class="icon"><use href="#i-file"/></svg></div>
+            </article>
+            <article class="metric">
+              <div class="metric-label">Issues Detected</div>
+              <div class="metric-value">37</div>
+              <div class="metric-trend"><strong class="trend-down">↓ 8%</strong> vs last 7 days</div>
+              <div class="metric-icon blue"><svg class="icon"><use href="#i-shield"/></svg></div>
+            </article>
+            <article class="metric">
+              <div class="metric-label">Artifacts Generated</div>
+              <div class="metric-value">12</div>
+              <div class="metric-trend"><strong class="trend-up">↑ 5%</strong> vs last 7 days</div>
+              <div class="metric-icon"><svg class="icon"><use href="#i-file"/></svg></div>
+            </article>
+          </section>
+
+          <section class="workflow-card panel" aria-label="Analysis workflow">
+            <div class="workflow-header">
+              <div class="workflow-title-group">
+                <h2 class="workflow-title">Analysis Workflow</h2>
+                <span class="live-pill"><span class="status-dot"></span>Live Pipeline</span>
+              </div>
+              <div class="workflow-controls">
+                <span class="auto-label">Auto-advance</span>
+                <button id="autoAdvance" class="toggle" type="button" aria-label="Toggle auto advance" aria-pressed="true"><span class="knob"></span></button>
+                <button class="detail-button" type="button" data-toast="Workflow details opened.">View Details</button>
+              </div>
+            </div>
+
+            <div class="workflow-track">
+              <article class="workflow-step complete" data-step="select">
+                <div class="step-heading">
+                  <span class="step-icon complete"><svg class="icon xs"><use href="#i-check"/></svg></span>
+                  <span class="step-title">Select Session</span>
+                  <span class="step-status green"></span>
+                </div>
+                <div class="step-copy"><div>sess_7f3a2c1b</div><div class="muted-line">Acme Platform</div></div>
+                <div class="progress-row"><div class="progress-track"><div class="progress-fill" style="--progress:100%"></div></div><span class="progress-value">100%</span></div>
+              </article>
+              <div class="connector"></div>
+              <article class="workflow-step active" data-step="analyze">
+                <div class="step-heading">
+                  <span class="step-icon active"><svg class="icon sm"><use href="#i-loader"/></svg></span>
+                  <span class="step-title">Analyze</span>
+                  <span class="step-status blue"></span>
+                </div>
+                <div class="step-copy"><div>Deep semantic scan</div><div>Detecting patterns...</div></div>
+                <div class="progress-row"><div class="progress-track"><div class="progress-fill" style="--progress:62%"></div></div><span class="progress-value">62%</span></div>
+              </article>
+              <div class="connector"></div>
+              <article class="workflow-step active" data-step="evidence">
+                <div class="step-heading">
+                  <span class="step-icon active"><svg class="icon sm"><use href="#i-grid"/></svg></span>
+                  <span class="step-title">Evidence Cards</span>
+                  <span class="step-status blue"></span>
+                </div>
+                <div class="step-copy"><div>Mining evidence</div><div>142 items found</div></div>
+                <div class="progress-row"><div class="progress-track"><div class="progress-fill" style="--progress:62%"></div></div><span class="progress-value">62%</span></div>
+              </article>
+              <div class="connector"></div>
+              <article class="workflow-step" data-step="audit">
+                <div class="step-heading">
+                  <span class="step-icon"><svg class="icon sm"><use href="#i-shield"/></svg></span>
+                  <span class="step-title">Audit</span>
+                  <span class="step-status"></span>
+                </div>
+                <div class="step-copy"><div>Validating findings</div><div>32 checks pending</div></div>
+                <div class="progress-row"><div class="progress-track"><div class="progress-fill" style="--progress:0%"></div></div><span class="progress-value">0%</span></div>
+              </article>
+              <div class="connector"></div>
+              <article class="workflow-step" data-step="assets">
+                <div class="step-heading">
+                  <span class="step-icon"><svg class="icon sm"><use href="#i-file"/></svg></span>
+                  <span class="step-title">Generate Assets</span>
+                  <span class="step-status"></span>
+                </div>
+                <div class="step-copy"><div>Artifacts &amp; reports</div><div>Waiting to start</div></div>
+                <div class="progress-row"><div class="progress-track"><div class="progress-fill" style="--progress:0%"></div></div><span class="progress-value">0%</span></div>
+              </article>
+            </div>
+
+            <div class="workflow-summary">
+              <div class="summary-item"><span class="summary-label">Evidence mined</span><span class="summary-value">142</span></div>
+              <div class="summary-item"><span class="summary-label">High confidence</span><span class="summary-value green">96 <small>(68%)</small></span></div>
+              <div class="summary-item"><span class="summary-label">Needs review</span><span class="summary-value orange">38 <small>(27%)</small></span></div>
+              <div class="summary-item"><span class="summary-label">Low confidence</span><span class="summary-value red">8 <small>(5%)</small></span></div>
+              <div class="summary-item estimate"><span class="summary-label">Est. completion</span><span class="summary-value estimate-value"><svg class="icon sm"><use href="#i-clock"/></svg>2–3 min</span></div>
+            </div>
+          </section>
+        </section>
+
+        <aside class="evidence-panel panel" aria-label="Recent evidence">
+          <div class="evidence-header">
+            <h2 class="evidence-title">Recent Evidence</h2>
+            <button class="text-link" type="button" data-toast="Showing all 186 evidence items.">View all</button>
+          </div>
+
+          <div class="evidence-list">
+            <article class="evidence-card" data-toast="User correction evidence selected.">
+              <div class="evidence-icon green"><svg class="icon"><use href="#i-user"/></svg></div>
+              <div class="evidence-body">
+                <div class="evidence-topline"><span class="evidence-kind">USER CORRECTION</span><span class="severity high">High</span></div>
+                <p class="evidence-description">User corrected CLI command<br />handling for edge case in parser.</p>
+                <div class="evidence-meta"><span>2m ago</span><span class="meta-dot"></span><span>sess_7f3a2c1b</span></div>
+              </div>
+            </article>
+
+            <article class="evidence-card" data-toast="Validation gap evidence selected.">
+              <div class="evidence-icon orange"><svg class="icon"><use href="#i-warning"/></svg></div>
+              <div class="evidence-body">
+                <div class="evidence-topline"><span class="evidence-kind">VALIDATION GAP</span><span class="severity medium">Medium</span></div>
+                <p class="evidence-description">Missing validation for rate limit<br />boundary in API client.</p>
+                <div class="evidence-meta"><span>8m ago</span><span class="meta-dot"></span><span>analyzer</span></div>
+              </div>
+            </article>
+
+            <article class="evidence-card" data-toast="Workflow pattern evidence selected.">
+              <div class="evidence-icon blue"><svg class="icon"><use href="#i-pattern"/></svg></div>
+              <div class="evidence-body">
+                <div class="evidence-topline"><span class="evidence-kind">WORKFLOW PATTERN</span><span class="severity info">Info</span></div>
+                <p class="evidence-description">Consistent retry pattern detected<br />across 3 modules.</p>
+                <div class="evidence-meta"><span>12m ago</span><span class="meta-dot"></span><span>pattern-miner</span></div>
+              </div>
+            </article>
+
+            <article class="evidence-card" data-toast="Artifact proposal evidence selected.">
+              <div class="evidence-icon purple"><svg class="icon"><use href="#i-terminal"/></svg></div>
+              <div class="evidence-body">
+                <div class="evidence-topline"><span class="evidence-kind">ARTIFACT PROPOSAL</span><span class="severity info">Info</span></div>
+                <p class="evidence-description">Propose adding regression test<br />for session timeout handling.</p>
+                <div class="evidence-meta"><span>18m ago</span><span class="meta-dot"></span><span>artifact-bot</span></div>
+              </div>
+            </article>
+          </div>
+
+          <button class="evidence-library-button" type="button" data-toast="Evidence library opened.">View Evidence Library <svg class="icon sm"><use href="#i-external"/></svg></button>
+        </aside>
+      </div>
+
+      <section class="console-panel" aria-label="Analysis console">
+        <div class="console-header">
+          <div class="console-title-group"><span>Analysis Console</span><span class="console-live"><span class="status-dot"></span>Live</span></div>
+          <div class="console-actions">
+            <button id="clearLogs" class="console-action" type="button">Clear</button>
+            <button id="filterLogs" class="console-action" type="button">Filter <svg class="icon sm"><use href="#i-filter"/></svg></button>
+            <span class="console-separator"></span>
+            <button id="pauseLogs" class="console-action" type="button" aria-label="Pause console"><svg class="icon sm"><use href="#i-pause"/></svg></button>
+          </div>
+        </div>
+        <div id="terminal" class="terminal" role="log" aria-live="polite">
+          <div class="log-line"><span class="log-time">10:42:11</span><span class="log-level">INFO</span><span class="log-message">Session loaded: sess_7f3a2c1b (Acme Platform)</span></div>
+          <div class="log-line"><span class="log-time">10:42:11</span><span class="log-level">INFO</span><span class="log-message">Time range: 2025-05-08 00:00:00 → 2025-05-15 10:42:11 (7d)</span></div>
+          <div class="log-line"><span class="log-time">10:42:12</span><span class="log-level">INFO</span><span class="log-message">Analysis mode: Deep Audit</span></div>
+          <div class="log-line"><span class="log-time">10:42:13</span><span class="log-level">INFO</span><span class="log-message">Scanning codebase... (1,842 files)</span></div>
+          <div class="log-line"><span class="log-time">10:42:18</span><span class="log-level ok">OK</span><span class="log-message">Parse complete: 1,842 files indexed</span></div>
+          <div class="log-line"><span class="log-time">10:42:27</span><span class="log-level">INFO</span><span class="log-message">Building semantic graph...</span></div>
+          <div class="log-line"><span class="log-time">10:42:27</span><span class="log-level ok">OK</span><span class="log-message">Graph built: 24,531 nodes, 91,203 edges</span></div>
+          <div class="log-line"><span class="log-time">10:42:32</span><span class="log-level">INFO</span><span class="log-message">Running analyzers (security, reliability, correctness)...</span></div>
+          <div class="log-line"><span class="log-time">10:42:35</span><span class="log-level ok">OK</span><span class="log-message">Analyzers complete: 37 issues detected</span></div>
+          <div class="log-line"><span class="log-time">10:42:35</span><span class="log-level">INFO</span><span class="log-message">Mining evidence cards...</span></div>
+          <div class="log-line"><span class="log-time">10:42:41</span><span class="log-level ok">OK</span><span class="log-message success">Evidence mining complete: 142 items (96 high, 38 medium, 8 low)</span></div>
+          <div class="log-line"><span class="log-time">10:42:42</span><span class="log-level">INFO</span><span class="log-message">Validating evidence...</span></div>
+          <div class="log-line"><span class="log-time">10:42:48</span><span class="log-level">INFO</span><span class="log-message">Audit checks queued: 64 (32 pending)</span></div>
+          <div class="log-line"><span class="log-time">10:42:48</span><span class="log-level">INFO</span><span class="log-message progress">Pipeline progress: Analyze → Evidence Cards (62%)</span></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status"><span class="status-dot"></span><span id="toastText">Ready</span></div>
+
+  <script>
+    (() => {
+      const toast = document.getElementById('toast');
+      const toastText = document.getElementById('toastText');
+      let toastTimer;
+
+      function showToast(message) {
+        toastText.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+      }
+
+      document.querySelectorAll('[data-toast]').forEach((element) => {
+        element.addEventListener('click', () => showToast(element.dataset.toast));
+      });
+
+      document.querySelectorAll('.nav-item').forEach((item) => {
+        item.addEventListener('click', () => {
+          document.querySelectorAll('.nav-item').forEach((navItem) => navItem.classList.remove('active'));
+          item.classList.add('active');
+          showToast(`${item.dataset.section} selected.`);
+        });
+      });
+
+      const dropdowns = [...document.querySelectorAll('[data-dropdown]')];
+      function closeDropdowns(except) {
+        dropdowns.forEach((dropdown) => {
+          if (dropdown !== except) {
+            dropdown.classList.remove('open');
+            dropdown.querySelector('.selector-button').setAttribute('aria-expanded', 'false');
+          }
+        });
+      }
+
+      dropdowns.forEach((dropdown) => {
+        const trigger = dropdown.querySelector('.selector-button');
+        const value = dropdown.querySelector('.selector-value');
+        const options = dropdown.querySelectorAll('.dropdown-option');
+
+        trigger.addEventListener('click', (event) => {
+          event.stopPropagation();
+          const willOpen = !dropdown.classList.contains('open');
+          closeDropdowns(dropdown);
+          dropdown.classList.toggle('open', willOpen);
+          trigger.setAttribute('aria-expanded', String(willOpen));
+        });
+
+        options.forEach((option) => {
+          option.addEventListener('click', (event) => {
+            event.stopPropagation();
+            options.forEach((candidate) => candidate.classList.remove('selected'));
+            option.classList.add('selected');
+            value.textContent = option.textContent.trim();
+            dropdown.classList.remove('open');
+            trigger.setAttribute('aria-expanded', 'false');
+            showToast(`${dropdown.querySelector('.selector-label').textContent}: ${option.textContent.trim()}`);
+          });
+        });
+      });
+
+      document.addEventListener('click', () => closeDropdowns());
+
+      const autoAdvance = document.getElementById('autoAdvance');
+      autoAdvance.addEventListener('click', () => {
+        const next = autoAdvance.getAttribute('aria-pressed') !== 'true';
+        autoAdvance.setAttribute('aria-pressed', String(next));
+        autoAdvance.classList.toggle('off', !next);
+        showToast(`Auto-advance ${next ? 'enabled' : 'disabled'}.`);
+      });
+
+      const terminal = document.getElementById('terminal');
+      const initialLogs = terminal.innerHTML;
+      const clearLogs = document.getElementById('clearLogs');
+      const filterLogs = document.getElementById('filterLogs');
+      const pauseLogs = document.getElementById('pauseLogs');
+      let logsPaused = false;
+      let filterOkOnly = false;
+
+      clearLogs.addEventListener('click', () => {
+        terminal.innerHTML = '';
+        showToast('Console cleared.');
+      });
+
+      filterLogs.addEventListener('click', () => {
+        filterOkOnly = !filterOkOnly;
+        const lines = terminal.querySelectorAll('.log-line');
+        lines.forEach((line) => {
+          const ok = line.querySelector('.log-level')?.classList.contains('ok');
+          line.style.display = !filterOkOnly || ok ? 'grid' : 'none';
+        });
+        showToast(filterOkOnly ? 'Showing verified OK output.' : 'Showing all console output.');
+      });
+
+      pauseLogs.addEventListener('click', () => {
+        logsPaused = !logsPaused;
+        pauseLogs.style.opacity = logsPaused ? '0.45' : '0.92';
+        showToast(logsPaused ? 'Console updates paused.' : 'Console updates resumed.');
+      });
+
+      function currentTime() {
+        return new Date().toLocaleTimeString('en-GB', { hour12: false });
+      }
+
+      function appendLog(level, message, className = '') {
+        if (logsPaused) return;
+        if (!terminal.children.length) terminal.innerHTML = initialLogs;
+        const line = document.createElement('div');
+        line.className = 'log-line';
+        const levelClass = level === 'OK' ? 'log-level ok' : 'log-level';
+        line.innerHTML = `<span class="log-time">${currentTime()}</span><span class="${levelClass}">${level}</span><span class="log-message ${className}">${message}</span>`;
+        terminal.appendChild(line);
+        terminal.scrollTop = terminal.scrollHeight;
+      }
+
+      function setProgress(stepName, progress, active = true) {
+        const step = document.querySelector(`[data-step="${stepName}"]`);
+        if (!step) return;
+        const fill = step.querySelector('.progress-fill');
+        const label = step.querySelector('.progress-value');
+        fill.style.setProperty('--progress', `${progress}%`);
+        label.textContent = `${progress}%`;
+        step.classList.toggle('active', active);
+        const status = step.querySelector('.step-status');
+        if (status) status.className = `step-status${active ? ' blue' : ''}`;
+      }
+
+      const runButton = document.getElementById('runAnalysis');
+      const prompt = document.getElementById('analysisPrompt');
+      let running = false;
+
+      async function runAnalysis() {
+        if (running) return;
+        running = true;
+        const original = runButton.innerHTML;
+        runButton.classList.add('is-running');
+        runButton.innerHTML = '<span class="spinner"></span><span>Analyzing...</span>';
+        appendLog('INFO', `Prompt received: ${prompt.value.trim() || 'Analyze the selected session'}`);
+        showToast('Analysis started for sess_7f3a2c1b.');
+
+        const stages = [
+          { delay: 550, step: 'analyze', progress: 74, message: 'Semantic scan progressing: 74%' },
+          { delay: 650, step: 'analyze', progress: 100, message: 'Semantic scan complete', level: 'OK', className: 'success' },
+          { delay: 500, step: 'evidence', progress: 79, message: 'Evidence mining progressing: 79%' },
+          { delay: 650, step: 'evidence', progress: 100, message: 'Evidence cards complete: 186 items', level: 'OK', className: 'success' },
+          { delay: 500, step: 'audit', progress: 26, message: 'Audit validation started: 26%' },
+          { delay: 650, step: 'audit', progress: 58, message: 'Audit checks progressing: 58%', className: 'progress' }
+        ];
+
+        for (const stage of stages) {
+          await new Promise((resolve) => setTimeout(resolve, stage.delay));
+          setProgress(stage.step, stage.progress, true);
+          appendLog(stage.level || 'INFO', stage.message, stage.className || '');
+        }
+
+        runButton.innerHTML = original;
+        runButton.classList.remove('is-running');
+        running = false;
+        showToast('Analysis is running in the audit stage.');
+      }
+
+      runButton.addEventListener('click', runAnalysis);
+      prompt.addEventListener('keydown', (event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') runAnalysis();
+      });
+    })();
+  </script>
+</body>
+</html>

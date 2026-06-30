@@ -8,12 +8,13 @@ import re
 import sys
 import uuid
 import webbrowser
+from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Sequence
 
-from .analysis import propose_improvements
+from .analysis import mechanism_for_improvement_category, propose_improvements
 from .config import load_config
+from .dashboard_server import create_dashboard_server
 from .db import (
     count_catalog_entries,
     count_sessions,
@@ -22,10 +23,10 @@ from .db import (
     get_events,
     get_improvement,
     get_session,
+    get_setting,
     insert_llm_job,
     insert_llm_output,
     insert_improvements,
-    latest_session,
     list_catalog_entries,
     list_catalog_projects,
     list_improvements,
@@ -33,14 +34,23 @@ from .db import (
     save_catalog_entries,
     save_transcript,
     search_events,
+    set_setting,
     update_llm_job_status,
     update_improvement_fields,
     update_improvement_status,
 )
+from .evidence_mining import MIN_SIGNAL_SCORE, run_evidence_mining, write_mining_outputs
+from .evals import run_golden_evals
 from .llm import (
+    SESSION_RETRO_MAX_OUTPUT_TOKENS,
     build_session_retro_request,
     default_model_for_provider,
+    generate_session_retro_analysis,
+    llm_cached_usage_payload,
+    llm_token_usage_report,
+    llm_usage_has_tokens,
     normalize_provider_name,
+    parse_llm_usage_json,
     provider_for_name,
     validate_session_retro_output,
 )
@@ -51,6 +61,8 @@ from .html_report import (
     write_report_html,
     write_report_json,
 )
+from .importers import get_importer, importer_names
+from .exports.skill import write_skill_md_exports_to_root
 from .paths import db_path, exports_dir, reports_dir
 from .privacy import redact_text
 from .reports import (
@@ -81,7 +93,18 @@ from .storage import (
     storage_roots,
     vacuum_storage,
 )
+from .sync import sync_import_paths
 from .transcripts import catalog_transcript_file, default_transcript_roots, discover_files, parse_transcript_file
+from .watch import (
+    add_watch_source,
+    delete_watch_source,
+    get_watch_source,
+    list_watch_events,
+    list_watch_sources,
+    run_enabled_watch_sources,
+    run_watch_source,
+    update_watch_source,
+)
 
 
 COMMAND_NAMES = frozenset(
@@ -91,14 +114,17 @@ COMMAND_NAMES = frozenset(
         "open",
         "history",
         "doctor",
+        "serve",
         "scan",
         "quickstart",
         "report",
         "import",
+        "watch",
         "sessions",
         "search",
         "retro",
         "patterns",
+        "mine",
         "improvements",
         "export",
         "storage",
@@ -106,6 +132,7 @@ COMMAND_NAMES = frozenset(
         "before",
         "after",
         "workflow",
+        "evals",
     }
 )
 
@@ -163,7 +190,7 @@ def build_parser() -> argparse.ArgumentParser:
     latest.add_argument("--no-open", action="store_true", help="Generate the report without opening a browser.")
     latest.add_argument("--terminal", action="store_true", help="Print the terminal summary without opening a browser.")
     latest.add_argument("--json", action="store_true", help="Generate only report.json for the latest session.")
-    latest.add_argument("--deep", action="store_true", help="Reserved for deeper analysis; currently uses the local report pipeline.")
+    latest.add_argument("--deep", action="store_true", help="Include deterministic evidence audit in the generated report.")
     latest.set_defaults(handler=cmd_latest)
 
     open_cmd = subparsers.add_parser("open", help="Open a generated report.")
@@ -181,8 +208,18 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--archive-dir", help="recodex archive directory.")
     doctor.set_defaults(handler=cmd_storage_stats)
 
-    scan = subparsers.add_parser("scan", help="Scan Codex transcript files into SQLite.")
+    serve = subparsers.add_parser("serve", help="Serve the local React dashboard and JSON API.")
+    serve.add_argument("--host", default="127.0.0.1", help="Bind host.")
+    serve.add_argument("--port", type=int, default=8000, help="Bind port.")
+    serve.add_argument("--dashboard-dir", help="Built dashboard dist directory.")
+    serve.add_argument("--open", action="store_true", help="Open the dashboard URL in a browser.")
+    serve.set_defaults(handler=cmd_serve)
+
+    source_choices = ("auto", *importer_names())
+
+    scan = subparsers.add_parser("scan", help="Scan AI coding transcript files into SQLite.")
     scan.add_argument("paths", nargs="*", help="Transcript files or directories.")
+    scan.add_argument("--source", choices=source_choices, default="auto", help="Transcript source type.")
     scan.add_argument("--limit", type=int, help="Maximum number of files to scan.")
     scan.add_argument("--dry-run", action="store_true", help="Only print discovered files.")
     scan.set_defaults(handler=cmd_scan)
@@ -196,8 +233,41 @@ def build_parser() -> argparse.ArgumentParser:
     quickstart.set_defaults(handler=cmd_quickstart)
 
     import_cmd = subparsers.add_parser("import", help="Import one transcript file or directory.")
+    import_cmd.add_argument("--source", choices=source_choices, default="auto", help="Transcript source type.")
     import_cmd.add_argument("paths", nargs="+", help="Transcript files or directories.")
     import_cmd.set_defaults(handler=cmd_scan)
+
+    watch = subparsers.add_parser("watch", help="Manage incremental import watch sources.")
+    watch_sub = watch.add_subparsers(dest="watch_command", required=True)
+    watch_add = watch_sub.add_parser("add", help="Add or update a watch source.")
+    watch_add.add_argument("--source", choices=source_choices, default="codex", help="Transcript source type.")
+    watch_add.add_argument("--path", required=True, help="File or directory to watch.")
+    watch_add.add_argument("--scope", help="Optional logical scope for imported context.")
+    watch_add.add_argument("--disabled", action="store_true", help="Create the source disabled.")
+    watch_add.set_defaults(handler=cmd_watch_add)
+    watch_list = watch_sub.add_parser("list", help="List watch sources.")
+    watch_list.set_defaults(handler=cmd_watch_list)
+    watch_status = watch_sub.add_parser("status", help="Show watch source sync status.")
+    watch_status.add_argument("--events", type=int, default=3, help="Recent sync events per source.")
+    watch_status.set_defaults(handler=cmd_watch_status)
+    watch_edit = watch_sub.add_parser("edit", help="Edit a watch source.")
+    watch_edit.add_argument("id", type=int)
+    watch_edit.add_argument("--source", choices=source_choices, help="Transcript source type.")
+    watch_edit.add_argument("--path", help="File or directory to watch.")
+    watch_edit.add_argument("--scope", help="Optional logical scope for imported context.")
+    watch_enabled = watch_edit.add_mutually_exclusive_group()
+    watch_enabled.add_argument("--enable", action="store_true", help="Enable this source.")
+    watch_enabled.add_argument("--disable", action="store_true", help="Disable this source.")
+    watch_edit.set_defaults(handler=cmd_watch_edit)
+    watch_delete = watch_sub.add_parser("delete", help="Delete a watch source.")
+    watch_delete.add_argument("id", type=int)
+    watch_delete.set_defaults(handler=cmd_watch_delete)
+    watch_remove = watch_sub.add_parser("remove", help="Delete a watch source.")
+    watch_remove.add_argument("id", type=int)
+    watch_remove.set_defaults(handler=cmd_watch_delete)
+    watch_run = watch_sub.add_parser("run", help="Run one sync pass for enabled watch sources.")
+    watch_run.add_argument("--id", type=int, help="Run one watch source by id.")
+    watch_run.set_defaults(handler=cmd_watch_run)
 
     sessions = subparsers.add_parser("sessions", help="Inspect indexed sessions.")
     sessions_sub = sessions.add_subparsers(dest="sessions_command", required=True)
@@ -220,9 +290,13 @@ def build_parser() -> argparse.ArgumentParser:
     retro.add_argument("--redact", action="store_true", default=True, help="Redact sensitive output.")
     retro.add_argument("--local-only", action="store_true", help="Do not call remote analysis providers.")
     retro.add_argument("--llm", action="store_true", help="Run optional structured LLM analysis.")
-    retro.add_argument("--llm-provider", help="LLM provider: openai or mock.")
+    retro.add_argument(
+        "--llm-provider",
+        help="LLM provider: openai, openai-compatible, dashscope, siliconflow, volcengine, or mock.",
+    )
     retro.add_argument("--llm-model", help="LLM model. Defaults to config model or provider default.")
     retro.add_argument("--allow-cloud", action="store_true", help="Allow cloud LLM calls for this command.")
+    retro.add_argument("--deep", action="store_true", help="Include deterministic evidence audit in the generated report.")
     retro.add_argument("--open", action="store_true", help="Open the generated HTML report in a browser.")
     retro.set_defaults(handler=cmd_retro)
 
@@ -231,9 +305,13 @@ def build_parser() -> argparse.ArgumentParser:
     report.add_argument("--reports-dir", help="Directory for generated reports.")
     report.add_argument("--local-only", action="store_true", help="Do not call remote analysis providers.")
     report.add_argument("--llm", action="store_true", help="Run optional structured LLM analysis.")
-    report.add_argument("--llm-provider", help="LLM provider: openai or mock.")
+    report.add_argument(
+        "--llm-provider",
+        help="LLM provider: openai, openai-compatible, dashscope, siliconflow, volcengine, or mock.",
+    )
     report.add_argument("--llm-model", help="LLM model. Defaults to config model or provider default.")
     report.add_argument("--allow-cloud", action="store_true", help="Allow cloud LLM calls for this command.")
+    report.add_argument("--deep", action="store_true", help="Include deterministic evidence audit in the generated report.")
     report.add_argument("--open", action="store_true", help="Open the generated HTML report in a browser.")
     report.set_defaults(handler=cmd_report)
 
@@ -241,6 +319,26 @@ def build_parser() -> argparse.ArgumentParser:
     patterns.add_argument("--since", default="30d", help="Window such as 30d, 2w, 12h, or ISO datetime.")
     patterns.add_argument("--reports-dir", help="Directory for Markdown reports.")
     patterns.set_defaults(handler=cmd_patterns)
+
+    mine = subparsers.add_parser(
+        "mine",
+        help="Mine auditable evidence cards and pattern clusters.",
+    )
+    mine.add_argument(
+        "--since",
+        default="30d",
+        help="Window such as 30d, 2w, 12h, or ISO datetime.",
+    )
+    mine.add_argument("--reports-dir", help="Base directory for generated reports.")
+    mine.add_argument(
+        "--output-dir",
+        help=(
+            "Directory for cards.jsonl, clusters.json, review_queue.json, "
+            "and coverage_report.md."
+        ),
+    )
+    mine.add_argument("--min-signal-score", type=float, default=MIN_SIGNAL_SCORE)
+    mine.set_defaults(handler=cmd_mine)
 
     improvements = subparsers.add_parser("improvements", help="Manage improvement candidates.")
     improvements_sub = improvements.add_subparsers(dest="improvements_command", required=True)
@@ -285,8 +383,20 @@ def build_parser() -> argparse.ArgumentParser:
     agents = export_sub.add_parser("agents", help="Write an AGENTS.md patch suggestion.")
     agents.add_argument("--exports-dir", help="Directory for exported artifacts.")
     agents.set_defaults(handler=cmd_export_agents)
-    skills = export_sub.add_parser("skills", help="Write skill, checklist, and script artifacts.")
+    skills = export_sub.add_parser("skills", help="Write accepted improvements as SKILL.md artifacts.")
     skills.add_argument("--exports-dir", help="Directory for exported artifacts.")
+    skills.add_argument("--out", help="Direct skill root directory, for example ~/.codex/skills.")
+    skills.add_argument(
+        "--target",
+        choices=["project", "codex", "cursor", "last"],
+        help="Common skill export destination shortcut.",
+    )
+    skills.add_argument(
+        "--on-conflict",
+        choices=["skip", "overwrite", "rename"],
+        default="rename",
+        help="How to handle an existing skill directory not managed by recodex.",
+    )
     skills.set_defaults(handler=cmd_export_skills)
     checklist = export_sub.add_parser("checklist", help="Write a checklist export.")
     checklist.add_argument("--exports-dir", help="Directory for exported artifacts.")
@@ -354,6 +464,12 @@ def build_parser() -> argparse.ArgumentParser:
     hooks = workflow_sub.add_parser("install-codex-hooks", help="Write a Codex after-session hook helper.")
     hooks.add_argument("--exports-dir", help="Directory for generated artifacts.")
     hooks.set_defaults(handler=cmd_workflow_install_codex_hooks)
+
+    evals = subparsers.add_parser("evals", help="Run recodex golden-session evaluations.")
+    evals_sub = evals.add_subparsers(dest="evals_command", required=True)
+    evals_run = evals_sub.add_parser("run", help="Run built-in golden evals.")
+    evals_run.add_argument("--json", action="store_true", help="Print machine-readable JSON.")
+    evals_run.set_defaults(handler=cmd_evals_run)
 
     return parser
 
@@ -455,12 +571,17 @@ def process_catalog_project(conn, projects, selected: int, process_limit: int | 
 
 
 def cmd_scan(args: argparse.Namespace) -> int:
-    roots = [Path(value) for value in args.paths] if args.paths else default_transcript_roots()
+    try:
+        importer = get_importer(getattr(args, "source", "auto"))
+    except ValueError as exc:
+        print(exc)
+        return 1
+    roots = [Path(value) for value in args.paths] if args.paths else list(importer.default_roots)
     if not roots:
-        print("No transcript paths provided and no default Codex transcript directory was found.")
+        print(f"No transcript paths provided and no default {importer.name} transcript directory was found.")
         return 1
 
-    files = discover_files(roots)
+    files = importer.discover(roots)
     limit = getattr(args, "limit", None)
     dry_run = getattr(args, "dry_run", False)
     if limit is not None:
@@ -472,22 +593,157 @@ def cmd_scan(args: argparse.Namespace) -> int:
         return 0
 
     conn = connect(db_path(args.db))
-    scanned = 0
+    report = sync_import_paths(conn, importer, roots, limit=limit)
+    print(f"Scanned {report.imported} transcript file(s) into {db_path(args.db)}.")
+    if report.skipped:
+        print(f"Skipped files: {report.skipped}")
+    if report.failed:
+        print(f"Failed files: {report.failed}")
+        for error in report.errors:
+            print(f"Failed to scan {error}")
+    return 0 if report.imported or report.skipped or not files else 1
+
+
+def cmd_serve(args: argparse.Namespace) -> int:
+    dashboard_dir = Path(args.dashboard_dir).expanduser() if args.dashboard_dir else None
+    server = create_dashboard_server(
+        db_path=db_path(args.db),
+        dashboard_dir=dashboard_dir,
+        host=args.host,
+        port=args.port,
+    )
+    host, port = server.server_address
+    url = f"http://{host}:{port}/"
+    print(f"Serving recodex dashboard at {url}", flush=True)
+    if args.open:
+        webbrowser.open(url)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopped recodex dashboard.")
+    finally:
+        server.server_close()
+    return 0
+
+
+def cmd_watch_add(args: argparse.Namespace) -> int:
+    conn = connect(db_path(args.db))
+    try:
+        source = add_watch_source(
+            conn,
+            source=args.source,
+            path=Path(args.path),
+            scope=args.scope,
+            enabled=not args.disabled,
+        )
+    except ValueError as exc:
+        print(exc)
+        return 1
+    print(f"Watch source #{source.id} {_watch_state(source)} {source.source} {source.path}")
+    if source.scope:
+        print(f"scope: {source.scope}")
+    return 0
+
+
+def cmd_watch_list(args: argparse.Namespace) -> int:
+    conn = connect(db_path(args.db))
+    sources = list_watch_sources(conn)
+    if not sources:
+        print("No watch sources configured.")
+        return 0
+    for source in sources:
+        print(_format_watch_source(source))
+    return 0
+
+
+def cmd_watch_status(args: argparse.Namespace) -> int:
+    conn = connect(db_path(args.db))
+    sources = list_watch_sources(conn)
+    if not sources:
+        print("No watch sources configured.")
+        return 0
+    for source in sources:
+        print(_format_watch_source(source))
+        if source.last_error:
+            print(f"  error: {source.last_error}")
+        for event in list_watch_events(conn, source.id, limit=args.events):
+            print(f"  event {event['created_at']}: {event['message']}")
+    return 0
+
+
+def cmd_watch_edit(args: argparse.Namespace) -> int:
+    conn = connect(db_path(args.db))
+    enabled = True if args.enable else False if args.disable else None
+    try:
+        source = update_watch_source(
+            conn,
+            args.id,
+            source=args.source,
+            path=Path(args.path) if args.path else None,
+            scope=args.scope,
+            enabled=enabled,
+        )
+    except ValueError as exc:
+        print(exc)
+        return 1
+    if source is None:
+        print(f"No watch source found for #{args.id}.")
+        return 1
+    print(f"Updated watch source #{source.id}.")
+    print(_format_watch_source(source))
+    return 0
+
+
+def cmd_watch_delete(args: argparse.Namespace) -> int:
+    conn = connect(db_path(args.db))
+    if not delete_watch_source(conn, args.id):
+        print(f"No watch source found for #{args.id}.")
+        return 1
+    print(f"Deleted watch source #{args.id}.")
+    return 0
+
+
+def cmd_watch_run(args: argparse.Namespace) -> int:
+    conn = connect(db_path(args.db))
+    if args.id:
+        source = get_watch_source(conn, args.id)
+        if source is None:
+            print(f"No watch source found for #{args.id}.")
+            return 1
+        if not source.enabled:
+            print(f"Watch source #{args.id} is disabled.")
+            return 1
+        results = [(source, run_watch_source(conn, source))]
+    else:
+        results = run_enabled_watch_sources(conn)
+    if not results:
+        print("No enabled watch sources configured.")
+        return 0
     failed = 0
-    for file in files:
-        try:
-            parsed = parse_transcript_file(file)
-            save_file = parsed.session.message_count > 0
-            if save_file:
-                save_transcript(conn, parsed)
-                scanned += 1
-        except OSError as exc:
+    for source, report in results:
+        if report.failed:
             failed += 1
-            print(f"Failed to scan {file}: {exc}")
-    print(f"Scanned {scanned} transcript file(s) into {db_path(args.db)}.")
-    if failed:
-        print(f"Failed files: {failed}")
-    return 0 if scanned or not files else 1
+        print(
+            f"Watch source #{source.id}: scanned={report.scanned} "
+            f"imported={report.imported} skipped={report.skipped} failed={report.failed}"
+        )
+        for error in report.errors:
+            print(f"  error: {error}")
+    return 1 if failed else 0
+
+
+def _format_watch_source(source) -> str:
+    scope = source.scope or "default"
+    last_sync = source.last_sync_at or "never"
+    return (
+        f"#{source.id} [{_watch_state(source)}] {source.source} {source.path} "
+        f"scope={scope} last_sync={last_sync} imported={source.last_imported} "
+        f"skipped={source.last_skipped} failed={source.last_failed}"
+    )
+
+
+def _watch_state(source) -> str:
+    return "enabled" if source.enabled else "disabled"
 
 
 def cmd_quickstart(args: argparse.Namespace) -> int:
@@ -627,7 +883,7 @@ def cmd_latest(args: argparse.Namespace) -> int:
     save_transcript(conn, parsed)
     events = list(parsed.events)
     session_dir = _latest_session_report_dir(reports_dir(args.reports_dir), parsed.session)
-    report_data = build_session_report_data(parsed.session, events)
+    report_data = build_session_report_data(parsed.session, events, deep=args.deep)
     if args.json:
         report_json_path = write_report_json(session_dir / "report.json", report_data)
         print(report_json_path)
@@ -694,8 +950,10 @@ def _write_session_html_report(
     session,
     events,
     analysis: dict[str, object] | None = None,
+    *,
+    deep: bool = False,
 ) -> tuple[Path, Path]:
-    report_data = build_session_report_data(session, events, analysis)
+    report_data = build_session_report_data(session, events, analysis, deep=deep)
     json_path = write_report_json(markdown_path.with_suffix(".json"), report_data)
     html_path = write_report_html(markdown_path.with_suffix(".html"), report_data)
     return json_path, html_path
@@ -709,6 +967,12 @@ def _open_html_report(path: Path) -> None:
 
 def _quickstart_project_dir(report_dir: Path, project_key: str) -> Path:
     return report_dir / "projects" / _project_slug(project_key)
+
+
+def _mine_output_dir(args: argparse.Namespace) -> Path:
+    if args.output_dir:
+        return Path(args.output_dir).expanduser()
+    return reports_dir(args.reports_dir) / "evidence-mining"
 
 
 def _quickstart_project_export_dir(export_base: Path, project_key: str) -> Path:
@@ -772,7 +1036,7 @@ def _render_quickstart_drafts(project_key: str, drafts) -> str:
                 f"## #{index} {redact_text(draft.title)}",
                 "",
                 "- Status: `proposed`",
-                f"- Category: `{draft.category}`",
+                f"- Mechanism: `{mechanism_for_improvement_category(draft.category)}`",
                 f"- Session: `{draft.session_id or 'project-aggregate'}`",
                 "",
                 "Evidence:",
@@ -886,7 +1150,7 @@ def cmd_retro(args: argparse.Namespace) -> int:
             events = get_events(conn, session.session_id)
             path = retro_report_path(reports_dir(args.reports_dir), session)
             write_text(path, render_retro(session, events))
-            _write_session_html_report(path, session, events)
+            _write_session_html_report(path, session, events, deep=getattr(args, "deep", False))
             paths.append(path)
         index_path = reports_dir(args.reports_dir) / "retro-index.md"
         write_text(index_path, _render_retro_index(paths, args.since))
@@ -909,7 +1173,7 @@ def cmd_retro(args: argparse.Namespace) -> int:
         write_text(path, render_retro_with_findings(session, events, analysis))
     else:
         write_text(path, render_retro(session, events))
-    _json_path, html_path = _write_session_html_report(path, session, events, analysis)
+    _json_path, html_path = _write_session_html_report(path, session, events, analysis, deep=getattr(args, "deep", False))
     if getattr(args, "open", False):
         _open_html_report(html_path)
     print(html_path)
@@ -956,8 +1220,19 @@ def run_llm_session_retro(conn, session, events, args: argparse.Namespace) -> di
         input_hash=request.input_hash,
     )
     if cached is not None:
+        cached_usage_json = parse_llm_usage_json(cached["usage_json"])
+        if not llm_usage_has_tokens(cached_usage_json):
+            cached = None
+    if cached is not None:
         output = json.loads(cached["output_json"])
         cleaned, _warnings = validate_session_retro_output(output)
+        cached_usage = llm_cached_usage_payload(
+            request,
+            cached_usage=cached_usage_json,
+            max_output_tokens=SESSION_RETRO_MAX_OUTPUT_TOKENS,
+            warnings=_warnings,
+        )
+        cleaned["_recodex_token_usage"] = llm_token_usage_report([cached_usage])
         return cleaned
 
     job_id = f"job_{uuid.uuid4().hex[:24]}"
@@ -974,29 +1249,24 @@ def run_llm_session_retro(conn, session, events, args: argparse.Namespace) -> di
         status="running",
     )
     try:
-        raw_output = provider_for_name(
+        provider = provider_for_name(
             provider_name,
             api_key=api_key,
             base_url=config.analysis.llm_base_url,
-        ).generate_json(
-            model=request.model,
-            system=request.system,
-            messages=request.messages,
-            schema=request.schema,
-            temperature=0,
-            max_output_tokens=1800,
-            metadata=request.metadata,
         )
-        cleaned, warnings = validate_session_retro_output(raw_output)
+        result = generate_session_retro_analysis(provider, request)
+        cleaned = result.output
+        usage = result.usage
         insert_llm_output(
             conn,
             output_id=f"out_{uuid.uuid4().hex[:24]}",
             job_id=job_id,
             output_json=json.dumps(cleaned, ensure_ascii=False),
-            usage_json=json.dumps({"warnings": list(warnings)}, ensure_ascii=False),
-            validation_status="ok" if not warnings else "ok_with_warnings",
+            usage_json=json.dumps(usage, ensure_ascii=False),
+            validation_status="ok" if not result.warnings else "ok_with_warnings",
         )
         update_llm_job_status(conn, job_id=job_id, status="ok")
+        cleaned["_recodex_token_usage"] = llm_token_usage_report([usage])
         return cleaned
     except Exception as exc:
         update_llm_job_status(conn, job_id=job_id, status="error", error=str(exc))
@@ -1007,10 +1277,43 @@ def cmd_patterns(args: argparse.Namespace) -> int:
     conn = connect(db_path(args.db))
     since = parse_since(args.since)
     sessions = list_sessions(conn, since)
-    events_by_session = {session.session_id: get_events(conn, session.session_id) for session in sessions}
+    events_by_session = {
+        session.session_id: get_events(conn, session.session_id)
+        for session in sessions
+    }
     path = patterns_report_path(reports_dir(args.reports_dir), args.since)
     write_text(path, render_patterns(sessions, events_by_session, args.since))
     print(path)
+    return 0
+
+
+def cmd_mine(args: argparse.Namespace) -> int:
+    conn = connect(db_path(args.db))
+    since = parse_since(args.since)
+    sessions = list_sessions(conn, since)
+    if not sessions:
+        print(f"No sessions found since {args.since}.")
+        return 0
+
+    events_by_session = {
+        session.session_id: get_events(conn, session.session_id)
+        for session in sessions
+    }
+    output_dir = _mine_output_dir(args)
+    result = run_evidence_mining(
+        sessions,
+        events_by_session,
+        min_signal_score=float(args.min_signal_score),
+    )
+    paths = write_mining_outputs(result, output_dir)
+    print(
+        "Mined "
+        f"{result.coverage['analysis_cards']} card(s), "
+        f"{result.coverage['clusters']} cluster(s), "
+        f"{result.coverage['ready_for_review_clusters']} ready for review."
+    )
+    for path in paths.values():
+        print(path)
     return 0
 
 
@@ -1042,7 +1345,8 @@ def cmd_improvements_review(args: argparse.Namespace) -> int:
         print("No improvement candidates found.")
         return 0
     for row in rows:
-        print(f"#{row['id']} [{row['status']}] {row['category']}: {row['title']}")
+        mechanism = mechanism_for_improvement_category(row["category"])
+        print(f"#{row['id']} [{row['status']}] {mechanism}: {row['title']}")
     return 0
 
 
@@ -1115,11 +1419,45 @@ def cmd_export_skills(args: argparse.Namespace) -> int:
     conn = connect(db_path(args.db))
     rows = list_improvements(conn, status="accepted", limit=20)
     if not rows:
-        rows = list_improvements(conn, status="proposed", limit=20)
-    paths = write_skill_exports(exports_dir(args.exports_dir), rows)
+        print("No accepted improvement candidates to export. Run `recodex improvements accept <id>` first.")
+        return 1
+    skill_root, error = _resolve_skill_export_root(conn, args)
+    if error:
+        print(error)
+        return 1
+    paths = write_skill_md_exports_to_root(
+        skill_root,
+        rows,
+        on_conflict=args.on_conflict,
+    )
+    set_setting(conn, "last_skill_export_dir", str(skill_root))
     for path in paths:
         print(path)
+    print(f"Skill export target: {skill_root}")
     return 0
+
+
+def _resolve_skill_export_root(conn, args: argparse.Namespace) -> tuple[Path, str | None]:
+    if (args.out or args.target) and args.exports_dir:
+        return Path(), "Use either --exports-dir or --out/--target, not both."
+    if args.out and args.target:
+        return Path(), "Use either --out or --target, not both."
+    if args.out:
+        return Path(args.out).expanduser().resolve(), None
+    target = args.target
+    if target == "last":
+        previous = get_setting(conn, "last_skill_export_dir")
+        if not previous:
+            return Path(), "No previous skill export directory recorded for this database."
+        return Path(previous).expanduser().resolve(), None
+    if target == "project":
+        return load_config(Path.cwd()).outputs.skills_dir, None
+    if target == "codex":
+        codex_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).expanduser()
+        return (codex_home / "skills").resolve(), None
+    if target == "cursor":
+        return (Path.cwd() / ".cursor" / "rules").resolve(), None
+    return (exports_dir(args.exports_dir) / "skills").resolve(), None
 
 
 def cmd_export_checklist(args: argparse.Namespace) -> int:
@@ -1315,6 +1653,19 @@ def cmd_workflow_install_codex_hooks(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_evals_run(args: argparse.Namespace) -> int:
+    result = run_golden_evals()
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print("Golden evals")
+        print(f"- cases: {result['case_count']}")
+        print(f"- routing accuracy: {result['routing_accuracy']}")
+        print(f"- evidence traceability: {result['evidence_traceability']}")
+        print(f"- false skill promotions: {result['false_skill_promotions']}")
+    return 0 if result["ok"] else 1
+
+
 def _print_improvements(args: argparse.Namespace, status: str | None, limit: int) -> int:
     conn = connect(db_path(args.db))
     rows = list_improvements(conn, status=status, limit=limit)
@@ -1322,7 +1673,8 @@ def _print_improvements(args: argparse.Namespace, status: str | None, limit: int
         print("No improvement candidates found.")
         return 0
     for row in rows:
-        print(f"#{row['id']} [{row['status']}] {row['category']}: {row['title']}")
+        mechanism = mechanism_for_improvement_category(row["category"])
+        print(f"#{row['id']} [{row['status']}] {mechanism}: {row['title']}")
     return 0
 
 

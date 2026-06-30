@@ -25,6 +25,34 @@ TEXT_KEYS = (
     "error",
     "summary",
 )
+SESSION_ID_KEYS = (
+    "session_id",
+    "sessionId",
+    "conversation_id",
+    "conversationId",
+    "rollout_id",
+    "rolloutId",
+    "chat_id",
+    "chatId",
+    "thread_id",
+    "threadId",
+    "composer_id",
+    "composerId",
+)
+TIMESTAMP_KEYS = ("timestamp", "created_at", "createdAt", "created", "updated_at", "updatedAt", "time", "ts")
+ROW_KEYS = (
+    "messages",
+    "items",
+    "events",
+    "turns",
+    "entries",
+    "conversation",
+    "conversations",
+    "history",
+    "chatData",
+    "composerData",
+)
+ROLE_VALUES = {"user", "assistant", "system", "tool", "developer"}
 ERROR_TERMS = (
     "error",
     "failed",
@@ -43,23 +71,27 @@ COMMAND_RE = re.compile(
 )
 ROLE_PREFIX_RE = re.compile(r"^\s*(user|assistant|system|tool|developer)\s*[:：]\s*", re.I)
 USER_CORRECTION_RE = re.compile(
-    r"不是这个|你忘了|刚才说过|not this|you forgot|as i said",
+    r"不是这个|不对|错了|偏题|我说的是|我的意思|你忘了|你漏了|刚才说过|not this|wrong|not what|you forgot|as i said",
     re.I,
 )
+CODEX_IDE_CONTEXT_PREFIX = "# Context from my IDE setup:"
+CODEX_REQUEST_MARKER = "my request for codex"
 MAX_JSONL_LINE_CHARS = 5 * 1024 * 1024
 
 
 def default_transcript_roots() -> list[Path]:
     home = Path.home()
-    codex_home = Path(os.environ.get("CODEX_HOME", home / ".codex")).expanduser()
+    codex_homes = _env_paths("CODEX_HOME") or [home / ".codex"]
     candidates: list[Path] = []
     if os.environ.get("CODEX_SESSIONS_DIR"):
-        candidates.append(Path(os.environ["CODEX_SESSIONS_DIR"]).expanduser())
-    candidates.extend([
-        codex_home / "sessions",
-        codex_home / "transcripts",
-        codex_home / "history",
-    ])
+        candidates.extend(_env_paths("CODEX_SESSIONS_DIR"))
+    for codex_home in codex_homes:
+        candidates.extend([
+            codex_home / "sessions",
+            codex_home / "archived_sessions",
+            codex_home / "transcripts",
+            codex_home / "history",
+        ])
     roots: list[Path] = []
     seen: set[Path] = set()
     for path in candidates:
@@ -68,6 +100,13 @@ def default_transcript_roots() -> list[Path]:
             seen.add(resolved)
             roots.append(path)
     return roots
+
+
+def _env_paths(name: str) -> list[Path]:
+    raw = os.environ.get(name)
+    if not raw:
+        return []
+    return [Path(part).expanduser() for part in raw.split(",") if part.strip()]
 
 
 def discover_files(paths: Iterable[Path]) -> list[Path]:
@@ -92,6 +131,25 @@ def parse_transcript_file(path: Path) -> ParsedTranscript:
     else:
         events, discovered_session_id = _parse_plain_text(path)
 
+    return build_parsed_transcript(path, events, discovered_session_id)
+
+
+def parse_transcript_value(
+    path: Path,
+    value: Any,
+    *,
+    fallback_session_id: str | None = None,
+) -> ParsedTranscript:
+    """Parse an already-decoded transcript-like JSON value."""
+    events, discovered_session_id = _parse_json_value(value)
+    return build_parsed_transcript(path, events, discovered_session_id or fallback_session_id)
+
+
+def build_parsed_transcript(
+    path: Path,
+    events: list[TranscriptEvent],
+    discovered_session_id: str | None,
+) -> ParsedTranscript:
     session_id = _stable_session_id(path, discovered_session_id)
     fixed_events = tuple(
         TranscriptEvent(
@@ -134,19 +192,17 @@ def catalog_transcript_file(path: Path, *, max_lines: int = 80) -> CatalogEntry:
                 continue
             if not isinstance(value, dict):
                 continue
-            session_id = session_id or _find_value(
-                value,
-                ("session_id", "conversation_id", "rollout_id", "chat_id"),
-            )
+            session_id = session_id or _session_id_from_json(value)
             project_path = project_path or _find_value(value, ("cwd", "workdir", "working_dir"))
             model = model or _find_value(value, ("model",))
-            timestamp = _find_value(value, ("timestamp", "created_at", "createdAt", "time", "ts"))
+            timestamp = _find_value(value, TIMESTAMP_KEYS)
             if timestamp:
                 timestamps.append(timestamp)
-            if not title and _direct_or_nested_value(value, "role") == "user":
+            if not title and _json_role(value) == "user":
                 candidate = _clean_text("\n".join(_collect_text(value)))
-                if _looks_like_real_user_goal(candidate):
-                    title = candidate.splitlines()[0][:96]
+                title_candidate = _title_candidate_from_user_text(candidate)
+                if title_candidate:
+                    title = title_candidate.splitlines()[0][:96]
 
     file_updated_at = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat()
     discovered_session_id = _stable_session_id(path, session_id)
@@ -165,11 +221,16 @@ def catalog_transcript_file(path: Path, *, max_lines: int = 80) -> CatalogEntry:
 def _parse_jsonl(path: Path) -> tuple[list[TranscriptEvent], str | None]:
     events: list[TranscriptEvent] = []
     session_id: str | None = None
-    with path.open(encoding="utf-8", errors="replace") as file:
-        for physical_index, line in enumerate(file):
+    byte_offset = 0
+    with path.open("rb") as file:
+        for physical_index, line_bytes in enumerate(file):
+            byte_start = byte_offset
+            byte_offset += len(line_bytes)
+            byte_end = byte_offset
+            line = line_bytes.decode("utf-8", errors="replace")
             if not line.strip():
                 continue
-            if len(line) > MAX_JSONL_LINE_CHARS:
+            if len(line_bytes) > MAX_JSONL_LINE_CHARS:
                 events.append(
                     TranscriptEvent(
                         "",
@@ -178,19 +239,38 @@ def _parse_jsonl(path: Path) -> tuple[list[TranscriptEvent], str | None]:
                         "huge_line",
                         f"[huge JSONL line omitted: physical line {physical_index + 1}]",
                         None,
-                        {"physical_line": physical_index + 1, "omitted": "huge_line"},
+                        {
+                            "physical_line": physical_index + 1,
+                            "byte_start": byte_start,
+                            "byte_end": byte_end,
+                            "omitted": "huge_line",
+                        },
                     )
                 )
                 continue
             try:
                 value = json.loads(line)
             except json.JSONDecodeError:
-                events.append(_plain_event("", len(events), line))
+                events.append(
+                    _with_source_location(
+                        _plain_event("", len(events), line),
+                        physical_line=physical_index + 1,
+                        byte_start=byte_start,
+                        byte_end=byte_end,
+                    )
+                )
                 continue
             event, row_session_id = _event_from_json("", len(events), value)
             session_id = session_id or row_session_id
             if event is not None:
-                events.append(event)
+                events.append(
+                    _with_source_location(
+                        event,
+                        physical_line=physical_index + 1,
+                        byte_start=byte_start,
+                        byte_end=byte_end,
+                    )
+                )
     return events, session_id
 
 
@@ -200,6 +280,10 @@ def _parse_json(path: Path) -> tuple[list[TranscriptEvent], str | None]:
     except json.JSONDecodeError:
         return _parse_plain_text(path)
 
+    return _parse_json_value(value)
+
+
+def _parse_json_value(value: Any) -> tuple[list[TranscriptEvent], str | None]:
     rows = _json_rows(value)
     events: list[TranscriptEvent] = []
     session_id: str | None = None
@@ -223,11 +307,41 @@ def _json_rows(value: Any) -> list[Any]:
     if isinstance(value, list):
         return value
     if isinstance(value, dict):
-        for key in ("messages", "items", "events", "turns"):
+        for key in ROW_KEYS:
             child = value.get(key)
             if isinstance(child, list):
                 return child
+            if isinstance(child, dict):
+                nested = _json_rows(child)
+                if nested != [child]:
+                    return nested
+        nested_rows: list[Any] = []
+        _collect_message_like_rows(value, nested_rows)
+        if nested_rows:
+            return nested_rows
     return [value]
+
+
+def _collect_message_like_rows(value: Any, rows: list[Any], depth: int = 0) -> None:
+    if depth > 10:
+        return
+    if isinstance(value, list):
+        for item in value:
+            _collect_message_like_rows(item, rows, depth + 1)
+        return
+    if not isinstance(value, dict):
+        return
+    role = _json_role(value)
+    if role in ROLE_VALUES and _collect_text(value):
+        rows.append(value)
+        return
+    for key in ROW_KEYS:
+        child = value.get(key)
+        if isinstance(child, (dict, list)):
+            _collect_message_like_rows(child, rows, depth + 1)
+    for child in value.values():
+        if isinstance(child, (dict, list)):
+            _collect_message_like_rows(child, rows, depth + 1)
 
 
 def _event_from_json(
@@ -241,26 +355,36 @@ def _event_from_json(
             return None, None
         return TranscriptEvent(session_id, index, "unknown", "json", text, None), None
 
-    discovered_session_id = _find_value(
-        value,
-        ("session_id", "conversation_id", "rollout_id", "chat_id"),
-    )
+    discovered_session_id = _session_id_from_json(value)
     metadata = _metadata_from_json(value)
-    role = _direct_or_nested_value(value, "role") or "unknown"
+    role = _json_role(value) or "unknown"
+    top_type = _string_value(value.get("type"))
+    item_type = _direct_or_nested_value(value.get("item"), "type")
     kind = (
-        _string_value(value.get("type"))
+        (item_type if top_type == "response_item" and item_type else top_type)
         or _string_value(value.get("kind"))
         or _string_value(value.get("event"))
         or _string_value(value.get("hook_event_name"))
         or _string_value(value.get("tool_name"))
         or _direct_or_nested_value(value.get("item"), "name")
-        or _direct_or_nested_value(value.get("item"), "type")
         or "json"
     )
+    if role == "unknown" and item_type == "reasoning":
+        role = "assistant"
+    if role == "unknown" and item_type in {"exec", "patch", "exploration"}:
+        role = "tool"
     if role == "unknown" and (metadata.get("command") or metadata.get("hook_event_name")):
         role = "tool"
-    created_at = _find_value(value, ("timestamp", "created_at", "createdAt", "time", "ts"))
-    text = _clean_text("\n".join(_metadata_text(metadata) + _collect_text(value)))
+    created_at = _find_value(value, TIMESTAMP_KEYS)
+    collected_text = _clean_text("\n".join(_collect_text(value)))
+    if role == "user":
+        user_input = _user_input_text_from_json(value, collected_text)
+        if user_input:
+            metadata["user_input_text"] = user_input
+        prompt = user_input or _title_candidate_from_user_text(collected_text)
+        if prompt and prompt != collected_text:
+            metadata["codex_prompt"] = _clean_text(prompt)
+    text = _clean_text("\n".join(piece for piece in (*_metadata_text(metadata), collected_text) if piece))
     if not text:
         return None, discovered_session_id
     return TranscriptEvent(session_id, index, role, kind, text, created_at, metadata), discovered_session_id
@@ -272,6 +396,93 @@ def _plain_event(session_id: str, index: int, text: str) -> TranscriptEvent:
     if match:
         text = text[match.end() :].strip()
     return TranscriptEvent(session_id, index, role, "text", _clean_text(text), None, {})
+
+
+def _with_source_location(
+    event: TranscriptEvent,
+    *,
+    physical_line: int,
+    byte_start: int,
+    byte_end: int,
+) -> TranscriptEvent:
+    metadata = {
+        **event.metadata,
+        "physical_line": physical_line,
+        "byte_start": byte_start,
+        "byte_end": byte_end,
+    }
+    return TranscriptEvent(
+        event.session_id,
+        event.event_index,
+        event.role,
+        event.kind,
+        event.text,
+        event.created_at,
+        metadata,
+    )
+
+
+def extract_user_input_text(text: str) -> str | None:
+    """Return the human-authored request without Codex IDE/context wrappers."""
+    stripped = text.strip()
+    if _context_only_user_text(stripped):
+        return None
+    candidate = _title_candidate_from_user_text(stripped)
+    return _clean_text(candidate) if candidate else _clean_text(stripped) if stripped else None
+
+
+def _user_input_text_from_json(value: dict[str, Any], fallback_text: str) -> str | None:
+    explicit = _clean_text("\n".join(_collect_user_input_text(value)))
+    return extract_user_input_text(explicit or fallback_text)
+
+
+def _collect_user_input_text(value: Any, depth: int = 0) -> list[str]:
+    if depth > 8:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        pieces: list[str] = []
+        for child in value:
+            pieces.extend(_collect_user_input_text(child, depth + 1))
+        return pieces
+    if not isinstance(value, dict):
+        return []
+
+    item_type = _string_value(value.get("type"))
+    if item_type in {"input_text", "text"}:
+        direct_text = _string_value(value.get("text"))
+        return [direct_text] if direct_text else []
+    if item_type == "output_text":
+        return []
+
+    content = value.get("content")
+    if isinstance(content, str):
+        return [content]
+    if isinstance(content, list):
+        pieces: list[str] = []
+        for child in content:
+            pieces.extend(_collect_user_input_text(child, depth + 1))
+        if pieces:
+            return pieces
+
+    pieces: list[str] = []
+    for key in ("item", "payload", "message", "request"):
+        child = value.get(key)
+        if isinstance(child, (dict, list)):
+            pieces.extend(_collect_user_input_text(child, depth + 1))
+    return pieces
+
+
+def _json_role(value: Any) -> str | None:
+    role = _direct_or_nested_value(value, "role")
+    if role:
+        return role.lower()
+    if isinstance(value, dict):
+        entry_type = _string_value(value.get("type"))
+        if entry_type and entry_type.lower() in ROLE_VALUES:
+            return entry_type.lower()
+    return None
 
 
 def _collect_text(value: Any, depth: int = 0) -> list[str]:
@@ -317,7 +528,29 @@ def _direct_or_nested_value(value: Any, key: str) -> str | None:
 
 def _metadata_from_json(value: dict[str, Any]) -> dict[str, Any]:
     metadata: dict[str, Any] = {}
-    for key in ("transcript_path", "cwd", "model", "hook_event_name", "tool_name"):
+    top_type = _string_value(value.get("type"))
+    item_type = _direct_or_nested_value(value.get("item"), "type")
+    parsed_cmd_type = _direct_or_nested_value(value.get("parsedCmd") or _nested_value(value.get("item"), "parsedCmd"), "type")
+    if top_type:
+        metadata["provider_type"] = top_type
+    if item_type:
+        metadata["codex_item_type"] = item_type
+    if parsed_cmd_type:
+        metadata["parsed_cmd_type"] = parsed_cmd_type
+    for key in (
+        "transcript_path",
+        "cwd",
+        "model",
+        "model_provider",
+        "originator",
+        "hook_event_name",
+        "tool_name",
+        "uuid",
+        "parentUuid",
+        "requestId",
+        "version",
+        "isSidechain",
+    ):
         found = _find_value(value, (key,))
         if found:
             metadata[key] = found
@@ -334,7 +567,25 @@ def _metadata_from_json(value: dict[str, Any]) -> dict[str, Any]:
     workdir = _find_value(value, ("workdir", "working_dir"))
     if workdir and "cwd" not in metadata:
         metadata["cwd"] = workdir
+    if _is_codex_subagent_source(value):
+        metadata["codex_source"] = "subagent"
     return metadata
+
+
+def _nested_value(value: Any, key: str) -> Any:
+    if isinstance(value, dict):
+        if key in value:
+            return value[key]
+        for child in value.values():
+            found = _nested_value(child, key)
+            if found is not None:
+                return found
+    if isinstance(value, list):
+        for child in value:
+            found = _nested_value(child, key)
+            if found is not None:
+                return found
+    return None
 
 
 def _metadata_text(metadata: dict[str, Any]) -> list[str]:
@@ -401,6 +652,28 @@ def _find_value(value: Any, keys: tuple[str, ...]) -> str | None:
             nested = _find_value(child, keys)
             if nested:
                 return nested
+    return None
+
+
+def _session_id_from_json(value: Any) -> str | None:
+    if not isinstance(value, dict):
+        return None
+    top_type = _string_value(value.get("type"))
+    if top_type == "session_meta":
+        for container in (value, value.get("payload")):
+            if not isinstance(container, dict):
+                continue
+            direct = _direct_string_value(container, (*SESSION_ID_KEYS, "id"))
+            if direct:
+                return direct
+    return _find_value(value, SESSION_ID_KEYS)
+
+
+def _direct_string_value(value: dict[str, Any], keys: tuple[str, ...]) -> str | None:
+    for key in keys:
+        direct = _string_value(value.get(key))
+        if direct:
+            return direct
     return None
 
 
@@ -478,8 +751,9 @@ def _title_from_events(
 ) -> str:
     source = ""
     for event in user_events:
-        if _looks_like_real_user_goal(event.text):
-            source = event.text
+        candidate = _title_candidate_from_user_text(event.text)
+        if candidate:
+            source = candidate
             break
     if not source:
         source = user_events[0].text if user_events else events[0].text if events else path.stem
@@ -497,14 +771,73 @@ def _looks_like_error(text: str) -> bool:
 
 
 def _looks_like_real_user_goal(text: str) -> bool:
-    stripped = text.strip().lower()
-    return bool(stripped) and not stripped.startswith("<environment_context>")
+    return _title_candidate_from_user_text(text) is not None
+
+
+def _title_candidate_from_user_text(text: str) -> str | None:
+    stripped = text.strip()
+    lowered = stripped.lower()
+    if not stripped or _context_only_user_text(stripped):
+        return None
+    if stripped.startswith(CODEX_IDE_CONTEXT_PREFIX):
+        return _extract_codex_prompt_from_ide_context(stripped)
+    return stripped
+
+
+def _context_only_user_text(text: str) -> bool:
+    lowered = text.lower()
+    return (
+        lowered.startswith("<environment_context>")
+        or lowered.startswith("<permissions")
+        or lowered.startswith("<collaboration_mode>")
+        or lowered.startswith("<skills_instructions>")
+        or "knowledge cutoff" in lowered[:240]
+        or "sandbox_mode" in lowered[:600]
+        or text.startswith("# AGENTS.md")
+    )
+
+
+def _extract_codex_prompt_from_ide_context(text: str) -> str | None:
+    lines = text.replace("\r\n", "\n").splitlines()
+    prompt: str | None = None
+    for index, line in enumerate(lines):
+        inline_prompt = _codex_request_heading_payload(line)
+        if inline_prompt is None:
+            continue
+        if inline_prompt:
+            prompt = inline_prompt
+            continue
+        following = "\n".join(lines[index + 1 :]).strip()
+        prompt = following or None
+    return prompt
+
+
+def _codex_request_heading_payload(line: str) -> str | None:
+    trimmed = line.strip()
+    if not trimmed.startswith("#"):
+        return None
+    heading = trimmed.lstrip("#").lstrip()
+    lowered = heading.lower()
+    if not lowered.startswith(CODEX_REQUEST_MARKER):
+        return None
+    suffix = heading[len(CODEX_REQUEST_MARKER) :].lstrip()
+    if not suffix:
+        return ""
+    separator = suffix[0]
+    if separator not in {":", "：", "-", "—"}:
+        return None
+    return suffix.lstrip(" \t:：-—").strip()
+
+
+def _is_codex_subagent_source(value: dict[str, Any]) -> bool:
+    source = _nested_value(value.get("payload") or value, "source")
+    return isinstance(source, dict) and "subagent" in source
 
 
 def _session_metadata(events: tuple[TranscriptEvent, ...]) -> dict[str, str]:
     metadata: dict[str, str] = {}
     for event in events:
-        for key in ("model", "cwd", "transcript_path"):
+        for key in ("model", "cwd", "transcript_path", "model_provider", "originator", "codex_source"):
             value = event.metadata.get(key)
             if value and key not in metadata:
                 metadata[key] = str(value)

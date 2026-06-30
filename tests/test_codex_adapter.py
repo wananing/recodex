@@ -7,7 +7,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from recodex.importers.codex import CodexImporter
 from recodex.transcripts import (
+    catalog_transcript_file,
     default_transcript_roots,
     looks_like_user_correction,
     parse_transcript_file,
@@ -89,6 +91,8 @@ class CodexAdapterParsingTests(unittest.TestCase):
                 command_events[0].metadata["command"],
                 "PYTHONPATH=src python3 -m unittest discover -s tests",
             )
+            user_event = next(event for event in parsed.events if event.role == "user")
+            self.assertEqual(user_event.metadata["user_input_text"], "Run the unit tests.")
 
     def test_parse_hook_like_jsonl_keeps_hook_command_output_and_context(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -128,6 +132,83 @@ class CodexAdapterParsingTests(unittest.TestCase):
             self.assertEqual(parsed.events[0].metadata["hook_event_name"], "PostToolUse")
             self.assertEqual(parsed.events[0].metadata["command"], "python -m unittest")
 
+    def test_parse_codex_session_meta_payload_id_and_provider_bucket(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "rollout.jsonl"
+            rows = [
+                {
+                    "timestamp": "2026-06-01T08:00:00Z",
+                    "type": "session_meta",
+                    "payload": {
+                        "id": "019d-codex-payload-id",
+                        "cwd": "/workspace/from-payload",
+                        "model_provider": "custom",
+                        "originator": "codex-tui",
+                        "source": {"subagent": {"thread_spawn": {"parent_thread_id": "parent-1"}}},
+                    },
+                },
+                {
+                    "timestamp": "2026-06-01T08:01:00Z",
+                    "type": "response_item",
+                    "payload": {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": "Fix the payload parser"}],
+                    },
+                },
+            ]
+            path.write_text("\n".join(json.dumps(row) for row in rows), encoding="utf-8")
+
+            parsed = parse_transcript_file(path)
+
+            self.assertEqual(parsed.session.session_id, "019d-codex-payload-id")
+            self.assertEqual(parsed.session.project_path, "/workspace/from-payload")
+            self.assertEqual(parsed.session.metadata["model_provider"], "custom")
+            self.assertEqual(parsed.session.metadata["originator"], "codex-tui")
+            self.assertEqual(parsed.session.metadata["codex_source"], "subagent")
+
+    def test_codex_ide_context_title_uses_last_real_request_heading(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "session.jsonl"
+            rows = [
+                {
+                    "timestamp": "2026-06-01T08:00:00Z",
+                    "type": "session_meta",
+                    "payload": {"id": "ide-title-session", "cwd": "/workspace/project"},
+                },
+                {
+                    "timestamp": "2026-06-01T08:01:00Z",
+                    "type": "response_item",
+                    "payload": {
+                        "type": "message",
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": (
+                                    "# Context from my IDE setup:\n\n"
+                                    "## Active selection: docs/example.md\n"
+                                    "## My request for Codex:\n"
+                                    "selected file content, not the request\n\n"
+                                    "## My request for Codex: Build the readable transcript import"
+                                ),
+                            }
+                        ],
+                    },
+                },
+            ]
+            path.write_text("\n".join(json.dumps(row) for row in rows), encoding="utf-8")
+
+            parsed = parse_transcript_file(path)
+            catalog = catalog_transcript_file(path)
+
+            self.assertEqual(parsed.session.title, "Build the readable transcript import")
+            self.assertEqual(catalog.title, "Build the readable transcript import")
+            self.assertEqual(catalog.session_id, "ide-title-session")
+            user_event = next(event for event in parsed.events if event.role == "user")
+            self.assertEqual(user_event.metadata["user_input_text"], "Build the readable transcript import")
+            self.assertIn("# Context from my IDE setup:", user_event.text)
+
     def test_codex_sessions_dir_is_default_root_before_codex_home(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -146,6 +227,34 @@ class CodexAdapterParsingTests(unittest.TestCase):
                 roots = default_transcript_roots()
 
             self.assertEqual(roots[:2], [env_sessions, codex_home / "sessions"])
+
+    def test_codex_discover_prefers_active_session_over_archived_duplicate(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            codex_home = root / "codex"
+            active = codex_home / "sessions" / "2026" / "session.jsonl"
+            archived_duplicate = codex_home / "archived_sessions" / "2026" / "session.jsonl"
+            archived_only = codex_home / "archived_sessions" / "2026" / "old.jsonl"
+            for path in (active, archived_duplicate, archived_only):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("", encoding="utf-8")
+
+            files = CodexImporter().discover([codex_home])
+
+            self.assertEqual(files, [active.resolve(), archived_only.resolve()])
+
+    def test_codex_directory_discover_keeps_session_scan_jsonl_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            session = root / "sessions" / "session.jsonl"
+            notes = root / "sessions" / "notes.md"
+            session.parent.mkdir(parents=True)
+            session.write_text("", encoding="utf-8")
+            notes.write_text("not a transcript", encoding="utf-8")
+
+            files = CodexImporter().discover([root])
+
+            self.assertEqual(files, [session.resolve()])
 
     def test_looks_like_user_correction(self) -> None:
         correction_texts = [

@@ -6,6 +6,8 @@ from recodex.models import SessionRecord, TranscriptEvent
 from recodex.reports import (
     render_checklist_export,
     render_ci_rule_export,
+    render_improvements,
+    render_patterns,
     render_retro,
     render_scripts_export,
 )
@@ -201,6 +203,59 @@ class ReportRenderingTests(unittest.TestCase):
         self.assertIn("Promote unit test loop", ci_rule)
         self.assertIn("Evidence:", ci_rule)
 
+    def test_patterns_report_uses_v2_efficiency_contract(self) -> None:
+        sessions = [
+            _session("s1", "Package manager guidance"),
+            _session("s2", "Package manager guidance"),
+        ]
+        events_by_session = {
+            "s1": [
+                _event(
+                    "s1",
+                    0,
+                    "user",
+                    "message",
+                    "Use pnpm instead of npm for package manager commands.",
+                ),
+            ],
+            "s2": [
+                _event(
+                    "s2",
+                    0,
+                    "user",
+                    "message",
+                    "Use pnpm instead of npm for package manager commands.",
+                ),
+            ],
+        }
+
+        report = render_patterns(sessions, events_by_session, "30d")
+
+        self.assertIn("## Efficiency Findings", report)
+        self.assertIn("Problem type: `repeated_user_requirement`", report)
+        self.assertIn("Mechanism: `agents_md`", report)
+        self.assertIn("Evidence refs:", report)
+        self.assertNotIn("Category:", report)
+        self.assertNotIn("card_type", report)
+
+    def test_improvements_report_displays_mechanism_not_category(self) -> None:
+        report = render_improvements(
+            [
+                {
+                    "id": 7,
+                    "status": "accepted",
+                    "category": "agents",
+                    "session_id": None,
+                    "title": "Promote project rule",
+                    "evidence": "Evidence refs: eref_1.",
+                    "recommendation": "Add a project rule.",
+                }
+            ]
+        )
+
+        self.assertIn("Mechanism: `agents_md`", report)
+        self.assertNotIn("Category:", report)
+
     def test_export_renderers_have_reasonable_empty_placeholders(self) -> None:
         checklist = render_checklist_export([])
         script = render_scripts_export([])
@@ -211,6 +266,40 @@ class ReportRenderingTests(unittest.TestCase):
         self.assertIn("No candidate-specific script suggestions yet", script)
         self.assertIn("workflow_dispatch:", ci_rule)
         self.assertIn("No candidate-specific CI rules yet", ci_rule)
+
+
+def _session(session_id: str, title: str) -> SessionRecord:
+    return SessionRecord(
+        session_id=session_id,
+        source_path=f"/tmp/{session_id}.jsonl",
+        started_at="2026-05-28T01:00:00+00:00",
+        updated_at="2026-05-28T01:05:00+00:00",
+        title=title,
+        tool="codex",
+        message_count=2,
+        user_message_count=1,
+        assistant_message_count=0,
+        command_count=0,
+        error_count=0,
+        raw_preview=title,
+    )
+
+
+def _event(
+    session_id: str,
+    index: int,
+    role: str,
+    kind: str,
+    text: str,
+) -> TranscriptEvent:
+    return TranscriptEvent(
+        session_id=session_id,
+        event_index=index,
+        role=role,
+        kind=kind,
+        text=text,
+        created_at="2026-05-28T01:00:00+00:00",
+    )
 
 
 if __name__ == "__main__":

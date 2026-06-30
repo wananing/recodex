@@ -63,6 +63,40 @@ class FullFeatureCliTests(unittest.TestCase):
                                 },
                             }
                         ),
+                        json.dumps(
+                            {
+                                "type": "response_item",
+                                "session_id": "full-1",
+                                "timestamp": "2026-05-28T01:03:00+00:00",
+                                "item": {
+                                    "type": "message",
+                                    "role": "user",
+                                    "content": [
+                                        {
+                                            "type": "input_text",
+                                            "text": "Use pnpm instead of npm for package manager commands.",
+                                        }
+                                    ],
+                                },
+                            }
+                        ),
+                        json.dumps(
+                            {
+                                "type": "response_item",
+                                "session_id": "full-1",
+                                "timestamp": "2026-05-28T01:04:00+00:00",
+                                "item": {
+                                    "type": "message",
+                                    "role": "user",
+                                    "content": [
+                                        {
+                                            "type": "input_text",
+                                            "text": "Use pnpm instead of npm for package manager commands.",
+                                        }
+                                    ],
+                                },
+                            }
+                        ),
                     ]
                 ),
                 encoding="utf-8",
