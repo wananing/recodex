@@ -98,13 +98,21 @@ class CliSmokeTests(unittest.TestCase):
             )
 
             self.assertEqual(main(["--db", str(db), "scan", str(transcript)]), 0)
-            self.assertEqual(
-                main(["--db", str(db), "retro", "latest", "--reports-dir", str(reports)]),
-                0,
-            )
             with contextlib.redirect_stdout(io.StringIO()) as report_output:
                 self.assertEqual(
-                    main(["--db", str(db), "report", "latest", "--reports-dir", str(reports), "--deep"]),
+                    main(
+                        [
+                            "--db",
+                            str(db),
+                            "report",
+                            "latest",
+                            "--reports-dir",
+                            str(reports),
+                            "--llm",
+                            "--llm-provider",
+                            "mock",
+                        ]
+                    ),
                     0,
                 )
             self.assertIn(".html", report_output.getvalue())
@@ -112,10 +120,12 @@ class CliSmokeTests(unittest.TestCase):
             report_payload = json.loads(report_json.read_text(encoding="utf-8"))
             self.assertIn("evidence_audit", report_payload)
             self.assertIn("deep-audit", report_payload["meta"]["analysis_mode"])
-            self.assertEqual(
-                main(["--db", str(db), "patterns", "--since", "3650d", "--reports-dir", str(reports)]),
-                0,
-            )
+            with contextlib.redirect_stdout(io.StringIO()) as legacy_output:
+                self.assertEqual(
+                    main(["--db", str(db), "patterns", "--since", "3650d", "--reports-dir", str(reports)]),
+                    1,
+                )
+            self.assertIn("retired", legacy_output.getvalue().lower())
             self.assertEqual(
                 main(
                     [
@@ -149,7 +159,7 @@ class CliSmokeTests(unittest.TestCase):
             self.assertTrue(any(reports.glob("retro-*.md")))
             self.assertTrue(any(reports.glob("retro-*.json")))
             self.assertTrue(any(reports.glob("retro-*.html")))
-            self.assertTrue((reports / "patterns-3650d.md").exists())
+            self.assertFalse((reports / "patterns-3650d.md").exists())
             self.assertTrue((reports / "improvements.md").exists())
             self.assertTrue((exports / "AGENTS.patch.md").exists())
             self.assertTrue(any((exports / "skills").glob("*/SKILL.md")))

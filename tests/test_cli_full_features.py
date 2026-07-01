@@ -120,17 +120,37 @@ class FullFeatureCliTests(unittest.TestCase):
             self.assertTrue((root / ".recodex.toml").exists())
             self.assertEqual(main(["--db", str(db), "scan", str(transcript)]), 0)
 
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(
+                    main(["--db", str(db), "retro", "full-1", "--reports-dir", str(reports)]),
+                    1,
+                )
+            self.assertIn("retired", output.getvalue().lower())
             self.assertEqual(
-                main(["--db", str(db), "retro", "full-1", "--reports-dir", str(reports)]),
+                main(
+                    [
+                        "--db",
+                        str(db),
+                        "report",
+                        "full-1",
+                        "--reports-dir",
+                        str(reports),
+                        "--llm",
+                        "--llm-provider",
+                        "mock",
+                    ]
+                ),
                 0,
             )
             self.assertFalse(any("sk-proj" in path.name for path in reports.glob("retro-*.md")))
-            self.assertEqual(
-                main(["--db", str(db), "retro", "--since", "3650d", "--reports-dir", str(reports)]),
-                0,
-            )
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(
+                    main(["--db", str(db), "retro", "--since", "3650d", "--reports-dir", str(reports)]),
+                    1,
+                )
+            self.assertIn("retired", output.getvalue().lower())
             self.assertTrue(any(reports.glob("retro-*.md")))
-            self.assertTrue((reports / "retro-index.md").exists())
+            self.assertFalse((reports / "retro-index.md").exists())
 
             with contextlib.redirect_stdout(io.StringIO()) as output:
                 self.assertEqual(main(["--db", str(db), "privacy", "scan", "latest"]), 0)
@@ -142,14 +162,31 @@ class FullFeatureCliTests(unittest.TestCase):
                 self.assertEqual(main(["--db", str(db), "before", "--project", str(root)]), 0)
             self.assertIn("Relevant AI Dev Context", output.getvalue())
 
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(
+                    main(
+                        [
+                            "--db",
+                            str(db),
+                            "after",
+                            "--session",
+                            "latest",
+                            "--reports-dir",
+                            str(reports),
+                        ]
+                    ),
+                    1,
+                )
+            self.assertIn("retired", output.getvalue().lower())
             self.assertEqual(
                 main(
                     [
                         "--db",
                         str(db),
-                        "after",
-                        "--session",
-                        "latest",
+                        "improvements",
+                        "propose",
+                        "--since",
+                        "3650d",
                         "--reports-dir",
                         str(reports),
                     ]
@@ -175,11 +212,13 @@ class FullFeatureCliTests(unittest.TestCase):
                 self.assertEqual(main(["--db", str(db), "improvements", "list", "--status", "applied"]), 0)
             self.assertIn("[applied]", output.getvalue())
 
-            self.assertEqual(
-                main(["workflow", "install-codex-hooks", "--exports-dir", str(exports)]),
-                0,
-            )
-            self.assertTrue((exports / "workflow" / "codex-after-session.sh").exists())
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(
+                    main(["workflow", "install-codex-hooks", "--exports-dir", str(exports)]),
+                    1,
+                )
+            self.assertIn("retired", output.getvalue().lower())
+            self.assertFalse((exports / "workflow" / "codex-after-session.sh").exists())
 
 
 if __name__ == "__main__":

@@ -2,320 +2,146 @@
 
 English | [中文](README.md)
 
-> Review your latest Codex session and see what to improve next time.
+<p align="center">
+  <img src="docs/assets/recodex-promo-hero.jpg" alt="recodex turns local AI coding sessions into efficiency reports and reusable project knowledge" width="100%">
+</p>
 
-`recodex` is a local-first CLI that reads your local Codex session transcripts, analyzes how you used Codex, and opens a static HTML report by default.
+<p align="center">
+  <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-10b981">
+  <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-2563eb">
+  <img alt="Dashboard first" src="https://img.shields.io/badge/workflow-Dashboard--first-f59e0b">
+  <img alt="LLM required" src="https://img.shields.io/badge/report-LLM--backed-ef4444">
+</p>
 
-It helps you find:
+> Turn real AI coding sessions into an efficiency report for better next-session collaboration.
 
-- context that arrived too late
-- task boundaries that drifted
-- moments where earlier intervention would help
-- missing verification evidence
-- project facts that should be documented before the next session
+`recodex` is a local-first AI coding session review tool. It reads local Codex, Claude Code, or Cursor transcripts and uses a user-configured LLM provider to generate one collaboration-efficiency report.
 
-It is not a transcript viewer, not a prompt optimizer, and not a generic AI summary tool.
+The report is written for the developer using AI coding tools. It does not rate whether the AI is smart. It explains how to give context earlier, split work better, verify results, and preserve reusable project knowledge.
 
-It reviews the usage process around a Codex session.
+## Why Use It
 
-```bash
-recodex
-```
+- **Review real sessions**: find collaboration friction in local Codex, Claude Code, and Cursor transcripts.
+- **Improve the next session**: learn when to give context, split work, and verify results earlier.
+- **Stay local-first**: raw transcripts stay on your machine; only the redacted analysis package goes to your configured LLM.
+- **Preserve reusable knowledge**: turn repeated issues into project docs, checklists, scripts, or skill candidates.
 
-```text
-[ok] Found latest Codex session
-[ok] Quick analysis completed
-[ok] Generated report.html
-[ok] Opened report in browser
+## Product Preview
 
-Key findings:
-- Key context arrived too late
-- The task boundary drifted slightly
-- The session ended without verification evidence
-```
+<p align="center">
+  <img src="docs/assets/recodex-promo-report.jpg" alt="recodex report page with findings, chat evidence, and verification signals" width="100%">
+</p>
 
-![recodex HTML report](docs/assets/report-page-screenshot.png)
-
----
-
-## Why
-
-Using Codex well is not only about model quality.
-
-A messy AI coding session is often a workflow problem:
-
-- the task starts without enough context
-- important project facts appear too late
-- debugging, refactoring, deployment, and docs are mixed into one session
-- the agent keeps exploring the wrong path
-- the final answer says "done" without tests, build, typecheck, lint, or manual verification evidence
-- the user explains the same project fact again and again
-
-`recodex` has a narrow goal: turn real Codex sessions into concrete feedback for using AI coding agents better next time.
-
----
-
-## What It Analyzes
-
-`recodex` focuses on five usage dimensions:
-
-- **Task start**: goal, context, constraints, and done condition
-- **Context timing**: which facts arrived too late and caused wasted exploration
-- **Intervention**: when the user should pause, reset assumptions, or split the session
-- **Verification and acceptance**: whether the final result has reviewable evidence
-- **Reusable improvements**: which facts, workflows, or commands should become docs, checklists, scripts, hooks, CI, or skills
-
----
-
-## What It Generates
-
-By default, recodex generates a local static report:
-
-```text
-.recodex/reports/<session-id>/
-  report.html
-  report.json
-  report.md
-```
-
-`report.html` is a self-contained HTML file. Structured JSON is embedded inside the page:
-
-```html
-<script id="report-data" type="application/json">...</script>
-```
-
-The page does not scan Codex sessions and does not fetch external JSON at runtime. The CLI parses and analyzes first, then renders the page.
-
-The report includes:
-
-1. Overview
-2. Flow timeline
-3. Main issues
-4. Context frontload analysis
-5. Intervention analysis
-6. Verification and acceptance
-7. Actionable suggestions
-8. Evidence appendix
-
-![Report anatomy](docs/assets/report-anatomy.svg)
-
----
+<p align="center">
+  <img src="docs/assets/recodex-promo-workflow.jpg" alt="recodex workflow from local transcripts to redacted LLM analysis and efficiency report" width="100%">
+</p>
 
 ## Quick Start
-
-Run from source:
 
 ```bash
 git clone <repo-url>
 cd recodex
 uv sync
-uv run recodex
+make dashboard-install
+make dashboard-build
+make dashboard-serve
 ```
 
-Common usage:
+In the Dashboard:
 
-```bash
-recodex              # analyze latest session and open the HTML report
-recodex --no-open    # generate the report without opening a browser
-recodex --terminal   # keep the browser closed and print the terminal summary
-recodex --json       # generate only report.json
-```
+1. Import local sessions.
+2. Configure Provider, Model, Base URL, and API Key in `LLM`.
+3. Select a project and session on the home page.
+4. Click “生成提效报告”.
+5. Open previous reports from the Reports menu.
 
-Explicit latest:
+## The Only Report
 
-```bash
-recodex latest
-recodex latest --since 30d
-```
+The product keeps one user-facing report: **the session efficiency report**.
 
----
+Report generation requires an LLM. If no LLM provider is enabled, the Dashboard asks you to configure one and does not generate a report.
+
+The report includes:
+
+- report focus
+- next-session actions
+- chat evidence based on user/assistant text, not tool output
+- efficiency findings with cost, cause, and evidence refs
+- reusable artifacts such as `AGENTS.md`, checklists, scripts, or skills
+- verification evidence
+
+Generated HTML, Markdown, and JSON files are written under local `.recodex/reports`.
 
 ## Commands
 
-Common commands:
-
 ```bash
-recodex              # analyze latest session and open HTML report
-recodex latest       # explicit latest-session analysis
-recodex open latest  # reopen the latest generated report
-recodex history      # summarize repeated patterns across recent sessions
-recodex doctor       # inspect Codex session storage and recodex state
+make dashboard-serve
+PYTHONPATH=src python3 -m recodex serve --dashboard-dir dashboard/dist
+PYTHONPATH=src python3 -m recodex scan ~/.codex/sessions
+PYTHONPATH=src python3 -m recodex doctor
 ```
 
-Advanced commands:
+For automation, use the headless entry for the same LLM-backed report:
 
 ```bash
-recodex scan ~/.codex/sessions
-recodex report latest --open
-recodex retro latest --local-only
-recodex quickstart --since 7d --limit 5
-recodex history --since 30d
-recodex export agents
-recodex export checklist
-recodex storage stats
+PYTHONPATH=src python3 -m recodex report latest --llm --llm-provider volcengine --allow-cloud
 ```
 
-`quickstart` is the explicit multi-session flow. It groups recent sessions by project, generates project reports, and exports workflow artifacts. It is not the default entry point.
+Daily report generation should go through the Dashboard home page. Legacy local report commands
+such as `latest`, `quickstart`, `retro`, and `patterns` are retired and only print migration
+guidance.
 
----
+## LLM Setup
 
-## Actionable Suggestions
+Dashboard presets include:
 
-`recodex` may suggest follow-up actions such as:
+- Volcengine Ark / Doubao
+- DashScope / Qwen
+- SiliconFlow / DeepSeek
+- OpenAI Responses
+- OpenAI-compatible API
 
-- document project commands in `AGENTS.md`
-- add a completion checklist
-- script repeated commands
-- add a hook or CI check
-- create a reusable skill for repeated workflows
-
-Suggestions are not applied automatically. Review them before applying.
-
----
-
-## Optional Local Report Server
-
-By default, `recodex` generates a self-contained `report.html` and opens it in your browser. It does not require a background service.
-
-A local report server is planned for browsing multiple reports, searching report history, and viewing weekly trends. This is an optional enhancement, not the default entry point.
-
-Planned command:
-
-```bash
-recodex serve
-```
-
----
-
-## Privacy
-
-`recodex` is local-first:
-
-- reads local Codex transcripts as read-only
-- does not modify original Codex session files
-- writes reports under local `.recodex`
-- keeps LLM analysis disabled by default
-- redacts content before optional LLM analysis
-- supports deterministic local analysis
-
-Redaction covers API keys, tokens, `.env` content, database URLs, cookies, private keys, Authorization headers, home paths, and emails.
-
----
-
-## Optional LLM Analysis
-
-LLM analysis is opt-in. The default path uses local deterministic parsing, Rulebase matching, and heuristic suggestions.
-
-Test the LLM path:
-
-```bash
-recodex retro latest --llm --llm-provider mock
-```
-
-OpenAI:
-
-```bash
-export OPENAI_API_KEY=...
-recodex retro latest --llm --allow-cloud
-```
-
-Volcengine Ark / Doubao:
+Example:
 
 ```bash
 export ARK_API_KEY=...
-recodex retro latest --llm --llm-provider volcengine --allow-cloud
+export OPENAI_API_KEY=...
 ```
 
-Or configure `~/.recodex/config.toml`:
+You control the provider and API key. `recodex` does not provide a hosted backend.
 
-```toml
-[analysis]
-local_only = false
-llm_provider = "volcengine"
-llm_api_key_env = "ARK_API_KEY"
-# llm_model = "doubao-seed-2-0-lite-260215"
+## Privacy
+
+`recodex` reads and writes local files by default:
+
+- original transcripts are read-only
+- reports and SQLite state are stored under local `.recodex`
+- report inputs are redacted before LLM calls
+- API keys, tokens, `.env`, database URLs, cookies, private keys, Authorization headers, home paths, and emails are handled as sensitive data
+
+LLM report generation sends the necessary redacted analysis package. Chat analysis focuses on user and assistant text, not command or tool results as chat conclusions.
+
+## Development
+
+```bash
+make test
+make dashboard-build
+make build
 ```
 
----
+Core Python code lives in `src/recodex/`, the Dashboard lives in `dashboard/src/`, and tests live in `tests/`.
 
-## Configuration
+## Maintenance and Contributing
 
-Project config: `.recodex.toml`
+- Contribution guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
+- Security policy: [SECURITY.md](SECURITY.md)
+- Maintenance scope: [docs/maintenance.md](docs/maintenance.md)
+- License: [MIT License](LICENSE)
 
-```toml
-[sources.codex]
-enabled = true
-sessions_dir = "~/.codex/sessions"
+## Promo Assets
 
-[privacy]
-redact_secrets = true
-redact_env_files = true
-redact_home_path = true
-
-[analysis]
-local_only = true
-
-[outputs]
-reports_dir = "./.recodex/reports"
-```
-
-Global config: `~/.recodex/config.toml`
-
----
-
-## Roadmap
-
-Current focus:
-
-- [x] Analyze latest Codex session
-- [x] Generate self-contained HTML report
-- [x] Detect late context
-- [x] Detect missing verification evidence
-- [x] Generate top suggestions and evidence appendix
-
-Next:
-
-- [ ] Better evidence appendix
-- [ ] `recodex open` report selection
-- [ ] `recodex doctor` for large session directories
-- [ ] AGENTS.md suggestion snippets
-- [ ] Checklist suggestions
-- [ ] Optional local report server
-
-Later:
-
-- [ ] Deep analysis mode
-- [ ] Batch analysis
-- [ ] Eval suite
-- [ ] Claude Code adapter
-- [ ] Cursor adapter
-- [ ] Git / GitHub adapter
-- [ ] CI logs adapter
-
----
-
-## FAQ
-
-### Is this a prompt optimizer?
-
-No. It may detect that some information should have appeared earlier, but the product is not centered on rewriting prompts.
-
-It reviews the usage process: context, task boundary, intervention timing, verification, and reusable improvements.
-
-### Does it judge whether the final code is correct?
-
-No. It checks whether the session produced enough verification evidence.
-
-If the agent changed code but did not run tests, build, typecheck, lint, or manual verification, the report will lower completion confidence.
-
-### Does it upload my Codex sessions?
-
-Not by default.
-
-The default path is local deterministic analysis. If LLM analysis is enabled, the tool sends a redacted, compact analysis package rather than the full raw transcript.
-
-### Why generate HTML by default?
-
-Terminal output is good for quick summaries, but not for reading structured retrospectives.
-
-HTML is easier to scan, save, share, print, and attach to issues or notes.
+- README hero: [docs/assets/recodex-promo-hero.jpg](docs/assets/recodex-promo-hero.jpg)
+- Report showcase: [docs/assets/recodex-promo-report.jpg](docs/assets/recodex-promo-report.jpg)
+- Workflow showcase: [docs/assets/recodex-promo-workflow.jpg](docs/assets/recodex-promo-workflow.jpg)
+- GitHub social preview: [docs/assets/recodex-social-preview.jpg](docs/assets/recodex-social-preview.jpg)

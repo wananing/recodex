@@ -330,7 +330,7 @@ export function ReportPage({
   const reportProject = text(meta.project ?? selectedReport?.project_path ?? (selectedProject !== "all" ? selectedProject : ""), "未选择项目");
   const reportSessionId = text(meta.session_id ?? selectedReport?.session_id, "latest");
   const reportGeneratedAt = text(meta.started_at ?? meta.generated_at ?? selectedReport?.created_at, "未生成");
-  const reportMode = text(meta.analysis_mode, "v2");
+  const reportMode = text(meta.analysis_mode, "llm+rules+deep-audit");
   const v2MechanismGroups = groupCount(allArtifactCandidates.map((artifact) => text(artifact.mechanism, "review")));
   const reviewableArtifacts = allArtifactCandidates.filter((artifact) => {
     const status = text(artifact.status, "proposed").toLowerCase();
@@ -420,19 +420,6 @@ export function ReportPage({
                 />
               </div>
               <div>
-                <span>报告类型</span>
-                <DashboardSelect<ReportKindFilter>
-                  value={reportKindFilter}
-                  options={[
-                    { value: "all", label: "全部类型" },
-                    { value: "session", label: "会话报告" },
-                    { value: "workflow", label: "流程报告" },
-                  ]}
-                  onChange={setReportKindFilter}
-                  ariaLabel="报告类型"
-                />
-              </div>
-              <div>
                 <span>沉淀建议</span>
                 <DashboardSelect<ReportArtifactFilter>
                   value={reportArtifactFilter}
@@ -462,7 +449,7 @@ export function ReportPage({
         <section className="report-library-empty-state">
           <FileText className="h-9 w-9" />
           <h2>没有匹配的报告</h2>
-          <p>调整项目、类型、沉淀建议状态或搜索词；新报告请回到首页生成。</p>
+          <p>调整项目、沉淀建议状态或搜索词；新报告请回到首页生成。</p>
         </section>
         ) : (
           <section className="report-list-grid" aria-label="可打开的报告">
@@ -471,7 +458,7 @@ export function ReportPage({
               const mechanisms = firstTextArray(summary.recommended_mechanisms);
               return (
                 <button type="button" className="report-list-card" key={report.id} onClick={() => openReport(report.id)}>
-                  <span>{report.kind} / {report.created_at}</span>
+                  <span>{report.created_at}</span>
                   <strong>{report.title || report.id}</strong>
                   <p>{text(summary.max_avoidable_cost ?? report.project_path, report.project_path ?? "unknown project")}</p>
                   <div>

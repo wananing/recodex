@@ -15,6 +15,7 @@ from pathlib import Path
 from .analysis import mechanism_for_improvement_category, propose_improvements
 from .config import load_config
 from .dashboard_server import create_dashboard_server
+from .dashboard_services import generate_session_report
 from .db import (
     count_catalog_entries,
     count_sessions,
@@ -110,6 +111,7 @@ from .watch import (
 COMMAND_NAMES = frozenset(
     {
         "init",
+        "guide",
         "latest",
         "open",
         "history",
@@ -146,7 +148,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _default_to_latest_args(argv: Sequence[str] | None) -> list[str]:
     args = list(sys.argv[1:] if argv is None else argv)
     if not args:
-        return ["latest"]
+        return args
     if any(arg in {"-h", "--help"} for arg in args):
         return args
 
@@ -162,17 +164,21 @@ def _default_to_latest_args(argv: Sequence[str] | None) -> list[str]:
             index += 1
             continue
         return args[:index] + ["latest"] + args[index:]
-    return args + ["latest"]
+    return args
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="recodex",
-        description="Review AI development sessions.",
-        epilog="Run `recodex` without a subcommand to generate and open the latest local HTML report.",
+        description="Review AI development sessions with a Dashboard-first LLM report workflow.",
+        epilog="Run `recodex serve --dashboard-dir dashboard/dist` to open the Dashboard.",
     )
     parser.add_argument("--db", help="SQLite database path. Defaults to .recodex/recodex.sqlite3.")
+    parser.set_defaults(handler=cmd_guide)
     subparsers = parser.add_subparsers(dest="command")
+
+    guide = subparsers.add_parser("guide", help="Print Dashboard-first usage guidance.")
+    guide.set_defaults(handler=cmd_guide)
 
     init = subparsers.add_parser("init", help="Initialize local recodex state.")
     init.add_argument("--project", default=".", help="Project directory for .recodex.toml.")
@@ -183,7 +189,7 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--no-prompt", action="store_true", help="Do not prompt for interactive project selection.")
     init.set_defaults(handler=cmd_init)
 
-    latest = subparsers.add_parser("latest", help="Generate and open the latest Codex session report.")
+    latest = subparsers.add_parser("latest", help="Retired: use the Dashboard or `recodex report`.")
     latest.add_argument("--sessions-dir", action="append", help="Codex sessions directory.")
     latest.add_argument("--since", default="3650d", help="Window used to find the latest session.")
     latest.add_argument("--reports-dir", help="Directory for generated reports.")
@@ -191,17 +197,17 @@ def build_parser() -> argparse.ArgumentParser:
     latest.add_argument("--terminal", action="store_true", help="Print the terminal summary without opening a browser.")
     latest.add_argument("--json", action="store_true", help="Generate only report.json for the latest session.")
     latest.add_argument("--deep", action="store_true", help="Include deterministic evidence audit in the generated report.")
-    latest.set_defaults(handler=cmd_latest)
+    latest.set_defaults(handler=cmd_legacy_report_cli)
 
     open_cmd = subparsers.add_parser("open", help="Open a generated report.")
     open_cmd.add_argument("target", nargs="?", default="latest", help="Report id or latest.")
     open_cmd.add_argument("--reports-dir", help="Directory containing generated reports.")
     open_cmd.set_defaults(handler=cmd_open)
 
-    history = subparsers.add_parser("history", help="Summarize repeated patterns across recent sessions.")
+    history = subparsers.add_parser("history", help="Retired: aggregate local reports are no longer maintained.")
     history.add_argument("--since", default="30d", help="Window such as 30d, 2w, 12h, or ISO datetime.")
     history.add_argument("--reports-dir", help="Directory for Markdown reports.")
-    history.set_defaults(handler=cmd_patterns)
+    history.set_defaults(handler=cmd_legacy_report_cli)
 
     doctor = subparsers.add_parser("doctor", help="Inspect Codex session storage and recodex state.")
     doctor.add_argument("--sessions-dir", action="append", help="Codex sessions directory.")
@@ -224,13 +230,13 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--dry-run", action="store_true", help="Only print discovered files.")
     scan.set_defaults(handler=cmd_scan)
 
-    quickstart = subparsers.add_parser("quickstart", help="Scan a few recent sessions and write reports.")
+    quickstart = subparsers.add_parser("quickstart", help="Retired: use Dashboard import and report generation.")
     quickstart.add_argument("--sessions-dir", action="append", help="Codex sessions directory.")
     quickstart.add_argument("--since", default="7d", help="Window such as 7d, 2w, 12h, or ISO datetime.")
     quickstart.add_argument("--limit", type=int, default=5, help="Maximum recent sessions to parse.")
     quickstart.add_argument("--reports-dir", help="Directory for Markdown reports.")
     quickstart.add_argument("--exports-dir", help="Directory for generated artifacts.")
-    quickstart.set_defaults(handler=cmd_quickstart)
+    quickstart.set_defaults(handler=cmd_legacy_report_cli)
 
     import_cmd = subparsers.add_parser("import", help="Import one transcript file or directory.")
     import_cmd.add_argument("--source", choices=source_choices, default="auto", help="Transcript source type.")
@@ -283,7 +289,7 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--limit", type=int, default=20)
     search.set_defaults(handler=cmd_search)
 
-    retro = subparsers.add_parser("retro", help="Generate retrospective reports.")
+    retro = subparsers.add_parser("retro", help="Retired: use the single LLM-backed session report.")
     retro.add_argument("target", nargs="?", default="latest", help="Session id, latest, or omitted.")
     retro.add_argument("--since", help="Generate retrospectives for sessions in a time window.")
     retro.add_argument("--reports-dir", help="Directory for Markdown reports.")
@@ -298,27 +304,27 @@ def build_parser() -> argparse.ArgumentParser:
     retro.add_argument("--allow-cloud", action="store_true", help="Allow cloud LLM calls for this command.")
     retro.add_argument("--deep", action="store_true", help="Include deterministic evidence audit in the generated report.")
     retro.add_argument("--open", action="store_true", help="Open the generated HTML report in a browser.")
-    retro.set_defaults(handler=cmd_retro)
+    retro.set_defaults(handler=cmd_legacy_report_cli)
 
-    report = subparsers.add_parser("report", help="Generate a static HTML report for one session.")
+    report = subparsers.add_parser("report", help="Generate the maintained LLM-backed session report.")
     report.add_argument("target", nargs="?", default="latest", help="Session id, latest, or omitted.")
     report.add_argument("--reports-dir", help="Directory for generated reports.")
-    report.add_argument("--local-only", action="store_true", help="Do not call remote analysis providers.")
-    report.add_argument("--llm", action="store_true", help="Run optional structured LLM analysis.")
+    report.add_argument("--local-only", action="store_true", help="Block cloud LLM calls for this command.")
+    report.add_argument("--llm", action="store_true", help="Enable explicit CLI LLM settings for this run.")
     report.add_argument(
         "--llm-provider",
         help="LLM provider: openai, openai-compatible, dashscope, siliconflow, volcengine, or mock.",
     )
     report.add_argument("--llm-model", help="LLM model. Defaults to config model or provider default.")
     report.add_argument("--allow-cloud", action="store_true", help="Allow cloud LLM calls for this command.")
-    report.add_argument("--deep", action="store_true", help="Include deterministic evidence audit in the generated report.")
+    report.add_argument("--deep", action="store_true", help="Retained for compatibility; the current report includes evidence audit.")
     report.add_argument("--open", action="store_true", help="Open the generated HTML report in a browser.")
     report.set_defaults(handler=cmd_report)
 
-    patterns = subparsers.add_parser("patterns", help="Generate aggregate pattern reports.")
+    patterns = subparsers.add_parser("patterns", help="Retired: aggregate local reports are no longer maintained.")
     patterns.add_argument("--since", default="30d", help="Window such as 30d, 2w, 12h, or ISO datetime.")
     patterns.add_argument("--reports-dir", help="Directory for Markdown reports.")
-    patterns.set_defaults(handler=cmd_patterns)
+    patterns.set_defaults(handler=cmd_legacy_report_cli)
 
     mine = subparsers.add_parser(
         "mine",
@@ -454,16 +460,16 @@ def build_parser() -> argparse.ArgumentParser:
     before.add_argument("--project", default=".", help="Project directory.")
     before.set_defaults(handler=cmd_before)
 
-    after = subparsers.add_parser("after", help="Run after-session review actions.")
+    after = subparsers.add_parser("after", help="Retired: use Dashboard report generation after a session.")
     after.add_argument("--session", default="latest", help="Session id or latest.")
     after.add_argument("--reports-dir", help="Directory for Markdown reports.")
-    after.set_defaults(handler=cmd_after)
+    after.set_defaults(handler=cmd_legacy_report_cli)
 
     workflow = subparsers.add_parser("workflow", help="Install workflow helper artifacts.")
     workflow_sub = workflow.add_subparsers(dest="workflow_command", required=True)
-    hooks = workflow_sub.add_parser("install-codex-hooks", help="Write a Codex after-session hook helper.")
+    hooks = workflow_sub.add_parser("install-codex-hooks", help="Retired: Dashboard report generation is explicit.")
     hooks.add_argument("--exports-dir", help="Directory for generated artifacts.")
-    hooks.set_defaults(handler=cmd_workflow_install_codex_hooks)
+    hooks.set_defaults(handler=cmd_legacy_report_cli)
 
     evals = subparsers.add_parser("evals", help="Run recodex golden-session evaluations.")
     evals_sub = evals.add_subparsers(dest="evals_command", required=True)
@@ -602,6 +608,36 @@ def cmd_scan(args: argparse.Namespace) -> int:
         for error in report.errors:
             print(f"Failed to scan {error}")
     return 0 if report.imported or report.skipped or not files else 1
+
+
+def cmd_guide(args: argparse.Namespace) -> int:
+    print("recodex now uses a Dashboard-first report workflow.")
+    print("")
+    print("Run the maintained report flow:")
+    print("  make dashboard-build")
+    print("  PYTHONPATH=src python3 -m recodex serve --dashboard-dir dashboard/dist")
+    print("")
+    print("Then import sessions, configure an LLM provider, and generate the report from the Dashboard home page.")
+    print("")
+    print("Maintained CLI support:")
+    print("  recodex scan <path>              Import local AI coding sessions")
+    print("  recodex report latest --llm ...  Generate the same LLM-backed session report headlessly")
+    print("  recodex sessions list            Inspect imported sessions")
+    print("  recodex privacy scan latest      Check redaction targets")
+    return 0
+
+
+def cmd_legacy_report_cli(args: argparse.Namespace) -> int:
+    command = str(getattr(args, "command", "this command") or "this command")
+    print(f"`recodex {command}` was retired with the single-report architecture.")
+    print("")
+    print("Use the Dashboard for normal report generation:")
+    print("  make dashboard-build")
+    print("  PYTHONPATH=src python3 -m recodex serve --dashboard-dir dashboard/dist")
+    print("")
+    print("For automation, use the maintained LLM report entry:")
+    print("  PYTHONPATH=src python3 -m recodex report latest --llm --llm-provider <provider> --allow-cloud")
+    return 1
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
@@ -1188,8 +1224,56 @@ def cmd_retro_latest(args: argparse.Namespace) -> int:
 
 
 def cmd_report(args: argparse.Namespace) -> int:
-    args.since = None
-    return cmd_retro(args)
+    try:
+        report = generate_session_report(
+            db_path(args.db),
+            target=args.target,
+            report_dir=reports_dir(args.reports_dir),
+            llm_settings=_cli_report_llm_settings(args),
+            deep=True,
+        )
+    except (RuntimeError, ValueError) as exc:
+        print(str(exc))
+        return 1
+
+    html_path = Path(str(report["html_path"]))
+    markdown_path = Path(str(report["markdown_path"]))
+    json_path = Path(str(report["json_path"]))
+    if getattr(args, "open", False):
+        _open_html_report(html_path)
+    print(html_path)
+    print(markdown_path)
+    print(json_path)
+    return 0
+
+
+def _cli_report_llm_settings(args: argparse.Namespace) -> dict[str, object] | None:
+    config = load_config(Path.cwd())
+    explicit = any(
+        [
+            args.llm,
+            args.llm_provider,
+            args.llm_model,
+            args.local_only,
+            args.allow_cloud,
+        ]
+    )
+    if not explicit:
+        return None
+    provider_name = normalize_provider_name(str(args.llm_provider or config.analysis.llm_provider or "openai"))
+    model = args.llm_model or config.analysis.llm_model or config.analysis.model or default_model_for_provider(provider_name)
+    settings: dict[str, object] = {
+        "enabled": True,
+        "provider": provider_name,
+        "model": model,
+        "api_key_env": config.analysis.llm_api_key_env,
+        "base_url": config.analysis.llm_base_url,
+        "local_only": bool(args.local_only or config.analysis.local_only),
+        "allow_cloud": bool(args.allow_cloud),
+    }
+    if config.analysis.llm_api_key:
+        settings["api_key"] = config.analysis.llm_api_key
+    return settings
 
 
 def run_llm_session_retro(conn, session, events, args: argparse.Namespace) -> dict[str, object]:
@@ -1618,7 +1702,7 @@ def cmd_before(args: argparse.Namespace) -> int:
         for row in rows:
             print(f"- [{row['status']}] {row['title']}: {_excerpt(row['recommendation'])}")
     else:
-        print("- No candidates yet. Run `recodex scan` and `recodex improvements propose`.")
+        print("- No candidates yet. Generate a Dashboard session efficiency report first.")
     print("")
     print("## Suggested Checklist")
     print("- Identify files and commands before editing.")

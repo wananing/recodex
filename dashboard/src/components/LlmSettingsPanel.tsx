@@ -1,4 +1,4 @@
-import { Activity, Bot, CheckCircle2, KeyRound, RefreshCw, Save, ShieldCheck } from "lucide-react";
+import { Activity, Bot, CheckCircle2, KeyRound, RefreshCw, Save } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { useI18n } from "@/lib/i18n";
@@ -102,6 +102,7 @@ const presets: LlmPreset[] = [
 ];
 
 const defaultPreset = presets[0];
+const visiblePresets = presets.filter((item) => item.id !== "mock");
 
 export function LlmSettingsPanel() {
   const { t } = useI18n();
@@ -193,7 +194,7 @@ export function LlmSettingsPanel() {
       <section className="work-panel llm-hero-panel">
         <div className="section-header">
           <h2>{t("llm.provider")}</h2>
-          <span>{settings.enabled ? t("common.enabled") : t("common.off")}</span>
+          <span>{settings.enabled ? t("common.enabled") : "需要配置"}</span>
         </div>
 
         {notice && (
@@ -204,7 +205,7 @@ export function LlmSettingsPanel() {
         )}
 
         <div className="llm-provider-grid" aria-label={t("llm.presets")}>
-          {presets.map((item) => (
+          {visiblePresets.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -230,10 +231,6 @@ export function LlmSettingsPanel() {
             <button type="button" className="secondary-command" disabled={busy === "load"} onClick={() => void loadSettings()}>
               <RefreshCw className="h-4 w-4" />
               {t("common.load")}
-            </button>
-            <button type="button" className="secondary-command" disabled={busy === "save"} onClick={() => void saveSettings(false)}>
-              <ShieldCheck className="h-4 w-4" />
-              {t("common.disable")}
             </button>
             <button type="button" className="primary-command" disabled={busy === "save"} onClick={() => void saveSettings(true)}>
               <Save className="h-4 w-4" />

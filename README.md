@@ -2,340 +2,150 @@
 
 [English](README.en.md) | 中文
 
-> 复盘最近一次 Codex 会话，看看下一次哪里可以用得更好。
+<p align="center">
+  <img src="docs/assets/recodex-promo-hero.jpg" alt="recodex 把本地 AI 编程会话转成提效报告和可复用项目知识" width="100%">
+</p>
 
-`recodex` 是一个本地优先 CLI。它读取本地 Codex session transcript，分析你这次是怎么使用 Codex 的，并默认打开一份本地静态 HTML 报告。
+<p align="center">
+  <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-10b981">
+  <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-2563eb">
+  <img alt="Dashboard first" src="https://img.shields.io/badge/workflow-Dashboard--first-f59e0b">
+  <img alt="LLM required" src="https://img.shields.io/badge/report-LLM--backed-ef4444">
+</p>
 
-它帮助你发现：
+> 把真实 AI 编程会话复盘成下一次更高效协作的提效报告。
 
-- 哪些上下文给得太晚
-- 任务边界在哪里发生了漂移
-- 哪些时刻更早暂停、纠偏或拆分会更好
-- 收尾是否缺少验证证据
-- 哪些项目事实应该在下一次会话前写入文档
+`recodex` 是一个本地优先的 AI 编程会话复盘工具。它读取本机 Codex、Claude Code 或 Cursor 会话记录，在用户配置的大模型上生成一份协作提效报告，帮助你判断下一次应该如何更清楚地给上下文、拆任务、做验证和沉淀项目经验。
 
-它不是 transcript viewer，不是 prompt optimizer，也不是泛用 AI 总结器。
+报告分析的主体是使用 AI 编程工具的开发者，而不是评价 AI 是否“聪明”。它关注：
 
-它复盘的是一次 Codex session 周围的使用流程。
+- 哪些目标、约束或验收标准应该更早给出
+- 哪些来回沟通、失败探索或纠偏可以避免
+- 哪些项目知识适合沉淀到 `AGENTS.md`、检查清单、脚本或 skill
+- 下次开启类似任务时应该直接怎么做
 
-```bash
-recodex
-```
+## 为什么值得用
 
-```text
-[ok] Found latest Codex session
-[ok] Quick analysis completed
-[ok] Generated report.html
-[ok] Opened report in browser
+- **复盘真实会话**：从本地 Codex、Claude Code、Cursor 聊天记录里找协作摩擦。
+- **面向下一次提效**：报告不评价模型，而是告诉你下次怎么给上下文、拆任务、验收结果。
+- **本地优先**：原始会话保留在本机，只把脱敏后的必要分析包交给你配置的 LLM。
+- **能沉淀资产**：把反复出现的问题转成项目文档、检查清单、脚本或 skill 候选。
 
-Key findings:
-- 关键上下文补充偏晚
-- 任务边界略有漂移
-- 收尾缺少验证证据
-```
+## 产品预览
 
-![recodex HTML report](docs/assets/report-page-screenshot.png)
+<p align="center">
+  <img src="docs/assets/recodex-promo-report.jpg" alt="recodex 报告页面展示提效问题、聊天依据和验收证据" width="100%">
+</p>
 
----
-
-## 为什么
-
-用好 Codex 不只是模型能力问题。
-
-一次混乱的 AI 编程会话，通常不是因为“AI 不够聪明”，而是流程闭环不稳：
-
-- 任务开始时上下文不够
-- 关键项目事实出现太晚
-- 调试、重构、部署、文档混在同一个 session
-- AI 在错误方向上继续探索
-- 最终回答说完成，但没有测试、构建、typecheck、lint 或手动验证证据
-- 用户反复解释同一个项目事实
-
-`recodex` 的目标很窄：从真实 Codex 会话里提炼下一次更高效使用 AI coding agent 的具体改进点。
-
----
-
-## 分析什么
-
-`recodex` 关注五件事：
-
-- **任务启动**：目标、上下文、约束、完成条件是否清楚
-- **上下文时机**：哪些信息出现太晚，是否导致无效探索
-- **过程干预**：什么时候应该暂停、总结假设、纠偏或拆分 session
-- **验证和验收**：是否有可审查的验证命令和结果
-- **可复用改进**：哪些事实、流程、命令可以沉淀到文档、checklist、script、hook、CI 或 skill
-
----
-
-## 会生成什么
-
-默认生成本地静态报告：
-
-```text
-.recodex/reports/<session-id>/
-  report.html
-  report.json
-  report.md
-```
-
-`report.html` 是单文件 HTML。结构化 JSON 会嵌入页面内部：
-
-```html
-<script id="report-data" type="application/json">...</script>
-```
-
-页面不扫描 Codex session，也不运行时 fetch 外部 JSON。CLI 先解析和分析，再渲染页面。
-
-报告包含：
-
-1. 概览
-2. 流程路径
-3. 主要问题
-4. 上下文前置分析
-5. 过程干预分析
-6. 验证和验收
-7. 可执行建议
-8. 证据附录
-
-![Report anatomy](docs/assets/report-anatomy.svg)
-
----
+<p align="center">
+  <img src="docs/assets/recodex-promo-workflow.jpg" alt="recodex 从本地会话到脱敏分析再到提效报告的工作流" width="100%">
+</p>
 
 ## 快速开始
-
-从源码运行：
 
 ```bash
 git clone <repo-url>
 cd recodex
 uv sync
-uv run recodex
-```
-
-常用方式：
-
-```bash
-recodex              # 分析 latest session 并打开 HTML 报告
-recodex --no-open    # 生成报告但不打开浏览器
-recodex --terminal   # 保持浏览器关闭，只看终端摘要
-recodex --json       # 只生成 report.json
-recodex --deep       # 生成报告并加入证据审计结果
-```
-
-显式 latest：
-
-```bash
-recodex latest
-recodex latest --since 30d
-```
-
----
-
-## 命令
-
-常用命令：
-
-```bash
-recodex              # 分析最新 session 并打开 HTML 报告
-recodex latest       # 显式 latest-session 分析
-recodex open latest  # 重新打开最近生成的报告
-recodex history      # 汇总最近会话里的重复模式
-recodex doctor       # 检查 Codex session 目录和 recodex 状态
-```
-
-高级命令：
-
-```bash
-recodex scan ~/.codex/sessions
-recodex report latest --deep --open
-recodex retro latest --local-only
-recodex quickstart --since 7d --limit 5
-recodex history --since 30d
-recodex evals run --json
-recodex export agents
-recodex export checklist
-recodex storage stats
-```
-
-`quickstart` 是显式多会话流程：它会按项目聚合最近会话，生成项目报告和改进资产。它不是默认入口。
-
----
-
-## 可执行建议
-
-`recodex` 可能建议后续动作，例如：
-
-- 把项目命令写入 `AGENTS.md`
-- 增加完成前 checklist
-- 把重复命令转成脚本
-- 增加 hook 或 CI 检查
-- 为重复流程创建 skill
-
-建议不会自动应用。先 review，再落地。
-
----
-
-## 可选本地报告服务
-
-默认情况下，`recodex` 生成自包含的 `report.html` 并用浏览器打开，不需要后台服务。
-
-本地 report server 适合以后浏览多份报告、搜索历史报告、查看周报和趋势。这个能力是可选增强，不是默认入口。
-
-## React Dashboard
-
-`dashboard/` 是从 ContextSeek 控制台复制并改造成的 Vite React 工作台，用于 v0.2.0 的 import、watch、session、report、analysis、artifact preview 和 skill export 流程。
-
-```bash
 make dashboard-install
 make dashboard-build
-make dashboard-preview
 make dashboard-serve
 ```
 
-`make dashboard-serve` 会构建前端并启动本地 API + SPA：
+打开 Dashboard 后按这个顺序使用：
+
+1. 在首页或导入页导入本地会话。
+2. 在 `LLM` 页面配置 Provider、Model、Base URL 和 API Key。
+3. 回到首页选择项目和会话。
+4. 点击“生成提效报告”。
+5. 在“报告”菜单查看历史报告，点击进入新版报告页。
+
+## 唯一报告
+
+当前产品只保留一种用户可见报告：**会话提效报告**。
+
+报告生成需要 LLM。没有启用 LLM Provider 时，Dashboard 会直接提示先配置模型，不生成报告。
+
+报告包含：
+
+- 报告重点：本次最值得改进的协作问题
+- 下一次怎么做：按优先级给出的具体动作
+- 聊天依据：只基于聊天文字提取的观察，不把工具执行结果当成聊天结论
+- 提效问题证据：成本、根因和证据引用
+- 沉淀建议：适合写入文档、清单、脚本或 skill 的内容
+- 验收证据：区分已验证和只是声称完成
+
+生成文件默认写入本地 `.recodex/reports`，包括 HTML、Markdown 和 JSON。
+
+## 常用命令
 
 ```bash
-recodex serve --dashboard-dir dashboard/dist
+make dashboard-serve
+PYTHONPATH=src python3 -m recodex serve --dashboard-dir dashboard/dist
+PYTHONPATH=src python3 -m recodex scan ~/.codex/sessions
+PYTHONPATH=src python3 -m recodex doctor
 ```
 
-Dashboard 端点包括 `/overview`、`/sessions`、`/import/run`、`/watch/run`、`/settings/llm`、`/reports`、`/reports/generate`、`/analysis/run`、`/improvements`、`/artifacts/preview`、`/artifacts/export`、`/artifacts/effectiveness` 和 `/skills/export`。
-
-计划命令：
+需要自动化时，可以使用同一份 LLM 提效报告的 headless 入口：
 
 ```bash
-recodex serve
+PYTHONPATH=src python3 -m recodex report latest --llm --llm-provider volcengine --allow-cloud
 ```
 
----
+日常使用以 Dashboard 首页生成报告为准。旧的 `latest`、`quickstart`、`retro`、`patterns`
+等本地报告命令已退休，只会输出迁移提示。
 
-## 隐私
+## LLM 配置
 
-`recodex` 是本地优先设计：
+Dashboard 支持这些 Provider 预设：
 
-- 只读本地 Codex transcript
-- 不修改原始 Codex session 文件
-- 默认把报告写到本地 `.recodex`
-- LLM 分析默认关闭
-- 可选 LLM 分析前会先脱敏
-- 支持本地确定性分析
+- Volcengine Ark / Doubao
+- DashScope / Qwen
+- SiliconFlow / DeepSeek
+- OpenAI Responses
+- OpenAI-compatible API
 
-脱敏范围包括 API keys、tokens、`.env` 内容、database URLs、cookies、private keys、Authorization headers、home path 和 emails。
-
----
-
-## 可选 LLM 分析
-
-LLM 是 opt-in。默认路径是本地确定性解析、规则经验库匹配和启发式建议。
-
-测试 LLM 链路：
-
-```bash
-recodex retro latest --llm --llm-provider mock
-```
-
-OpenAI：
-
-```bash
-export OPENAI_API_KEY=...
-recodex retro latest --llm --allow-cloud
-```
-
-火山方舟 / 豆包：
+示例环境变量：
 
 ```bash
 export ARK_API_KEY=...
-recodex retro latest --llm --llm-provider volcengine --allow-cloud
+export OPENAI_API_KEY=...
 ```
 
-或写入 `~/.recodex/config.toml`：
+用户自己控制 Provider 和 Key。`recodex` 不提供托管后端。
 
-```toml
-[analysis]
-local_only = false
-llm_provider = "volcengine"
-llm_api_key_env = "ARK_API_KEY"
-# llm_model = "doubao-seed-2-0-lite-260215"
+## 隐私
+
+`recodex` 默认读写本地文件：
+
+- 只读原始会话记录，不修改原始文件
+- 报告和数据库写入本地 `.recodex`
+- 报告生成前会进行脱敏
+- API keys、tokens、`.env`、database URLs、cookies、private keys、Authorization headers、home path 和 emails 会被处理
+
+LLM 报告会发送必要的脱敏分析包。聊天记录分析以用户和助手的文字消息为主，不把工具执行结果作为聊天结论。
+
+## 开发
+
+```bash
+make test
+make dashboard-build
+make build
 ```
 
----
+核心 Python 代码在 `src/recodex/`，Dashboard 在 `dashboard/src/`，测试在 `tests/`。
 
-## 配置
+## 维护与贡献
 
-项目配置：`.recodex.toml`
+- 贡献指南：[CONTRIBUTING.md](CONTRIBUTING.md)
+- 更新记录：[CHANGELOG.md](CHANGELOG.md)
+- 安全说明：[SECURITY.md](SECURITY.md)
+- 维护边界：[docs/maintenance.md](docs/maintenance.md)
+- 开源协议：[MIT License](LICENSE)
 
-```toml
-[sources.codex]
-enabled = true
-sessions_dir = "~/.codex/sessions"
+## 宣传素材
 
-[privacy]
-redact_secrets = true
-redact_env_files = true
-redact_home_path = true
-
-[analysis]
-local_only = true
-
-[outputs]
-reports_dir = "./.recodex/reports"
-```
-
-全局配置：`~/.recodex/config.toml`
-
----
-
-## Roadmap
-
-当前聚焦：
-
-- [x] 分析 latest Codex session
-- [x] 生成单文件 HTML 报告
-- [x] 检测上下文补充偏晚
-- [x] 检测验证证据缺失
-- [x] 生成 Top 建议和证据附录
-- [x] Deep evidence audit 模式
-- [x] Artifact preview/export/review/effectiveness loop
-- [x] Golden eval suite
-
-下一步：
-
-- [ ] 更好的 evidence appendix
-- [ ] `recodex open` 历史报告选择
-- [ ] `recodex doctor` 大 session 目录诊断
-- [ ] 可选本地 report server
-
-更后面：
-
-- [ ] batch analysis
-- [ ] Claude Code adapter
-- [ ] Cursor adapter
-- [ ] Git / GitHub adapter
-- [ ] CI logs adapter
-
----
-
-## FAQ
-
-### 这是 prompt optimizer 吗？
-
-不是。它可能发现某些信息应该更早给到 Codex，但核心不是改写 prompt。
-
-它复盘的是使用流程：上下文、任务边界、干预时机、验证闭环和可复用改进。
-
-### 它会判断最终代码是否正确吗？
-
-不会。它检查的是 session 是否产生了足够的验证证据。
-
-如果 AI 改了代码但没有测试、构建、typecheck、lint 或手动验证，报告会降低完成可信度。
-
-### 它会上传我的 Codex sessions 吗？
-
-默认不会。
-
-默认路径是本地确定性分析。启用 LLM 分析时，工具发送的是脱敏后的紧凑分析包，而不是完整原始 transcript。
-
-### 为什么默认生成 HTML？
-
-终端适合快速摘要，但不适合阅读结构化复盘。
-
-HTML 更适合浏览、保存、分享、打印，也适合附到 issue 或笔记里。
+- README 主视觉：[docs/assets/recodex-promo-hero.jpg](docs/assets/recodex-promo-hero.jpg)
+- 报告展示图：[docs/assets/recodex-promo-report.jpg](docs/assets/recodex-promo-report.jpg)
+- 工作流展示图：[docs/assets/recodex-promo-workflow.jpg](docs/assets/recodex-promo-workflow.jpg)
+- GitHub social preview：[docs/assets/recodex-social-preview.jpg](docs/assets/recodex-social-preview.jpg)

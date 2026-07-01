@@ -191,15 +191,15 @@ class ReportRenderingTests(unittest.TestCase):
 
         self.assertIn("#!/usr/bin/env bash", script)
         self.assertIn("recodex scan", script)
-        self.assertIn("recodex retro latest", script)
-        self.assertIn("recodex improvements propose", script)
+        self.assertIn("RECODEX_LLM_PROVIDER", script)
+        self.assertIn("recodex report latest --llm", script)
         self.assertIn("Promote unit test loop", script)
         self.assertIn("Evidence:", script)
 
         self.assertIn("name: recodex", ci_rule)
         self.assertIn("workflow_dispatch:", ci_rule)
-        self.assertIn("recodex patterns --since", ci_rule)
-        self.assertIn("recodex improvements propose", ci_rule)
+        self.assertIn("recodex guide", ci_rule)
+        self.assertIn("explicit headless job", ci_rule)
         self.assertIn("Promote unit test loop", ci_rule)
         self.assertIn("Evidence:", ci_rule)
 

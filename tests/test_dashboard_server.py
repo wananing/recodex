@@ -188,7 +188,11 @@ class DashboardServerTests(unittest.TestCase):
             generated = _json(
                 app.handle_post(
                     "/reports/generate",
-                    {"target": "dashboard-report-1", "reports_dir": str(reports)},
+                    {
+                        "target": "dashboard-report-1",
+                        "reports_dir": str(reports),
+                        "llm": _mock_llm_settings(),
+                    },
                 )
             )
             self.assertEqual(generated["report"]["session_id"], "dashboard-report-1")
@@ -270,7 +274,11 @@ class DashboardServerTests(unittest.TestCase):
             generated = _json(
                 app.handle_post(
                     "/reports/generate",
-                    {"target": "dashboard-core-summary", "reports_dir": str(reports)},
+                    {
+                        "target": "dashboard-core-summary",
+                        "reports_dir": str(reports),
+                        "llm": _mock_llm_settings(),
+                    },
                 )
             )
 
@@ -279,10 +287,13 @@ class DashboardServerTests(unittest.TestCase):
                 generated_summary["max_avoidable_cost"],
                 "未发现明确可避免成本",
             )
-            self.assertEqual(generated_summary["primary_improvement"], "沉淀重复项目要求")
+            self.assertEqual(
+                generated_summary["primary_improvement"],
+                "发起任务时先要求列出最小相关验证、完成标准、未覆盖风险和收尾对照格式。",
+            )
             self.assertEqual(
                 generated_summary["primary_cause"],
-                "稳定项目约束没有进入 AGENTS.md 或等效 Harness 上下文。",
+                "任务启动时没有把原话、阶段目标和验证证据绑定成可更新清单。",
             )
             self.assertNotIn("user_advice", generated_summary["recommended_mechanisms"])
             self.assertEqual(
@@ -373,27 +384,36 @@ class DashboardServerTests(unittest.TestCase):
             generated = _json(
                 app.handle_post(
                     "/reports/generate",
-                    {"target": "dashboard-artifact-candidate", "reports_dir": str(reports)},
+                    {
+                        "target": "dashboard-artifact-candidate",
+                        "reports_dir": str(reports),
+                        "llm": _mock_llm_settings(),
+                    },
                 )
             )
             report_id = str(generated["report"]["id"])
             raw_json = _json(app.handle_get(f"/reports/{report_id}/json"))
             report_data = json.loads(str(raw_json["content"]))
             self.assertEqual(report_data["schema_version"], "recodex_core_report_v1")
-            artifact = report_data["artifact_candidates"][0]
-            self.assertIn("mechanism", artifact)
-            self.assertIn("source_finding_ids", artifact)
-            self.assertNotIn("artifact_type", artifact)
-            self.assertNotIn("opportunity_id", artifact)
+            top_level_artifact = report_data["artifact_candidates"][0]
+            self.assertIn("mechanism", top_level_artifact)
+            self.assertIn("source_finding_ids", top_level_artifact)
+            self.assertNotIn("artifact_type", top_level_artifact)
+            self.assertNotIn("opportunity_id", top_level_artifact)
             self.assertEqual(
                 report_data["efficiency_analysis"]["artifact_candidates"][0]["id"],
-                artifact["id"],
+                top_level_artifact["id"],
             )
-            self.assertEqual(report_data["artifact_review_queue"][0]["id"], artifact["id"])
+            self.assertEqual(
+                report_data["artifact_review_queue"][0]["id"],
+                top_level_artifact["id"],
+            )
 
-            review = _json(app.handle_get(f"/mining/review?reports_dir={reports}&report_id={report_id}"))
-            self.assertEqual(review["artifact_candidates"][0]["id"], artifact["id"])
-            self.assertEqual(review["artifact_candidates"][0]["artifact_source"], "report_candidate")
+            review = _json(
+                app.handle_get(f"/mining/review?reports_dir={reports}&report_id={report_id}")
+            )
+            artifact = review["artifact_candidates"][0]
+            self.assertEqual(artifact["artifact_source"], "report_candidate")
             self.assertEqual(review["artifact_review_queue"][0]["id"], artifact["id"])
 
             preview = _json(
@@ -436,8 +456,18 @@ class DashboardServerTests(unittest.TestCase):
                 artifact["id"],
                 [item["id"] for item in accepted_review["artifact_review_queue"]],
             )
-            reviewed_report = json.loads(report_path.read_text(encoding="utf-8")) if (report_path := Path(str(generated["report"]["json_path"]))).exists() else {}
-            self.assertEqual(reviewed_report["artifact_candidates"][0]["status"], "accepted")
+            report_path = Path(str(generated["report"]["json_path"]))
+            reviewed_report = (
+                json.loads(report_path.read_text(encoding="utf-8"))
+                if report_path.exists()
+                else {}
+            )
+            reviewed_focus_artifact = next(
+                item
+                for item in reviewed_report["report_focus"]["recommended_artifacts"]
+                if item["id"] == artifact["id"]
+            )
+            self.assertEqual(reviewed_focus_artifact["status"], "accepted")
             self.assertNotIn(
                 artifact["id"],
                 [item["id"] for item in reviewed_report["artifact_review_queue"]],
@@ -476,7 +506,11 @@ class DashboardServerTests(unittest.TestCase):
             generated = _json(
                 app.handle_post(
                     "/reports/generate",
-                    {"target": "dashboard-unsafe-candidate", "reports_dir": str(reports)},
+                    {
+                        "target": "dashboard-unsafe-candidate",
+                        "reports_dir": str(reports),
+                        "llm": _mock_llm_settings(),
+                    },
                 )
             )
             report_id = str(generated["report"]["id"])
@@ -700,7 +734,7 @@ class DashboardServerTests(unittest.TestCase):
 
             defaults = _json(app.handle_get("/settings/llm"))
             self.assertFalse(defaults["settings"]["enabled"])
-            self.assertEqual(defaults["settings"]["provider"], "mock")
+            self.assertEqual(defaults["settings"]["provider"], "volcengine")
 
             saved = _json(
                 app.handle_post(
@@ -1035,7 +1069,12 @@ class DashboardServerTests(unittest.TestCase):
             generated = _json(
                 app.handle_post(
                     "/reports/generate",
-                    {"target": "latest", "project": str(project_a), "reports_dir": str(reports)},
+                    {
+                        "target": "latest",
+                        "project": str(project_a),
+                        "reports_dir": str(reports),
+                        "llm": _mock_llm_settings(),
+                    },
                 )
             )
 
@@ -1073,6 +1112,7 @@ class DashboardServerTests(unittest.TestCase):
             _write_session(transcript, "report-job-session", "Generate report job.")
             app = DashboardApp(db_path=db, dashboard_dir=None)
 
+            _json(app.handle_post("/settings/llm", _mock_llm_settings()))
             _json(app.handle_post("/import/run", {"source": "codex", "path": str(transcript)}))
             started = _json(
                 app.handle_post(
@@ -1096,7 +1136,7 @@ class DashboardServerTests(unittest.TestCase):
             self.assertIn("deep-audit", report_payload["meta"]["analysis_mode"])
             self.assertNotEqual(report_payload["meta"]["analysis_mode"], "llm-workflow")
 
-    def test_dashboard_report_job_defaults_to_fast_local_report_when_llm_is_enabled(self) -> None:
+    def test_dashboard_report_job_requires_enabled_llm_settings(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             db = root / "state.sqlite3"
@@ -1105,20 +1145,6 @@ class DashboardServerTests(unittest.TestCase):
             _write_session(transcript, "fast-report-session", "Generate a quick report.")
             app = DashboardApp(db_path=db, dashboard_dir=None)
 
-            _json(
-                app.handle_post(
-                    "/settings/llm",
-                    {
-                        "enabled": True,
-                        "provider": "openai-compatible",
-                        "model": "slow-json-model",
-                        "base_url": "http://127.0.0.1:1",
-                        "api_key": "test-key",
-                        "local_only": False,
-                        "allow_cloud": True,
-                    },
-                )
-            )
             _json(app.handle_post("/import/run", {"source": "codex", "path": str(transcript)}))
             started = _json(
                 app.handle_post(
@@ -1128,13 +1154,10 @@ class DashboardServerTests(unittest.TestCase):
             )
 
             job = _wait_for_job(app, str(started["job"]["id"]))
-            self.assertEqual(job["status"], "succeeded", job.get("error"))
-            report = job["result"]["report"]
-            self.assertEqual(report["session_id"], "fast-report-session")
-            raw_json = _json(app.handle_get(f"/reports/{report['id']}/json"))
-            self.assertNotIn("llm+rules", raw_json["content"])
+            self.assertEqual(job["status"], "failed")
+            self.assertIn("生成报告需要先配置并启用 LLM Provider", str(job.get("error")))
 
-    def test_dashboard_report_job_uses_configured_llm_when_requested(self) -> None:
+    def test_dashboard_report_job_uses_configured_llm_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             db = root / "state.sqlite3"
@@ -1164,7 +1187,6 @@ class DashboardServerTests(unittest.TestCase):
                         "type": "report",
                         "target": "llm-report-job-session",
                         "reports_dir": str(reports),
-                        "include_llm": True,
                     },
                 )
             )
@@ -1189,6 +1211,17 @@ def _json(response) -> dict[str, object]:
     if self_status != HTTPStatus.OK:
         raise AssertionError(response.body.decode("utf-8"))
     return json.loads(response.body.decode("utf-8"))
+
+
+def _mock_llm_settings() -> dict[str, object]:
+    return {
+        "enabled": True,
+        "provider": "mock",
+        "model": "mock-model",
+        "api_key": "local-secret",
+        "local_only": True,
+        "allow_cloud": False,
+    }
 
 
 def _wait_for_job(app: DashboardApp, job_id: str) -> dict[str, object]:

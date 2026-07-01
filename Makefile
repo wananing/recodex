@@ -1,4 +1,4 @@
-.PHONY: test build publish publish-yes dashboard-install dashboard-dev dashboard-build dashboard-preview dashboard-serve scan retro patterns propose review export-agents export-skills
+.PHONY: test build publish publish-yes dashboard-install dashboard-dev dashboard-build dashboard-preview dashboard-serve scan report
 
 test:
 	PYTHONPATH=src python3 -m unittest discover -s tests
@@ -30,20 +30,5 @@ dashboard-serve: dashboard-build
 scan:
 	PYTHONPATH=src python3 -m recodex scan
 
-retro:
-	PYTHONPATH=src python3 -m recodex retro latest
-
-patterns:
-	PYTHONPATH=src python3 -m recodex patterns --since 30d
-
-propose:
-	PYTHONPATH=src python3 -m recodex improvements propose
-
-review:
-	PYTHONPATH=src python3 -m recodex improvements review
-
-export-agents:
-	PYTHONPATH=src python3 -m recodex export agents
-
-export-skills:
-	PYTHONPATH=src python3 -m recodex export skills
+report:
+	PYTHONPATH=src python3 -m recodex report latest --llm --llm-provider "$${RECODEX_LLM_PROVIDER:?Set RECODEX_LLM_PROVIDER}" --allow-cloud

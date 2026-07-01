@@ -69,7 +69,6 @@ from recodex.reports import (
     render_ci_rule_export,
     render_improvements,
     render_patterns,
-    render_retro,
     render_retro_with_findings,
     retro_report_path,
     write_checklist_export,
@@ -95,6 +94,7 @@ def list_dashboard_reports(state_db: Path, *, limit: int = 50) -> list[dict[str,
         """
         SELECT *
         FROM generated_reports
+        WHERE kind = 'session'
         ORDER BY created_at DESC
         LIMIT ?
         """,
@@ -120,10 +120,11 @@ def generate_session_report(
     root = report_dir or reports_dir(None)
     markdown_path = retro_report_path(root, session)
     resolved_llm = _llm_settings_for_run(conn, llm_settings)
-    analysis = _run_llm_session_retro(conn, session, events, resolved_llm) if resolved_llm["enabled"] else None
+    _require_report_llm_settings(resolved_llm)
+    analysis = _run_llm_session_retro(conn, session, events, resolved_llm)
     write_text(
         markdown_path,
-        render_retro_with_findings(session, events, analysis) if analysis else render_retro(session, events),
+        render_retro_with_findings(session, events, analysis),
     )
     report_data = build_session_report_data(session, events, analysis, deep=deep)
     json_path = write_report_json(markdown_path.with_suffix(".json"), report_data)
@@ -214,11 +215,11 @@ def _payload_llm_settings(payload: dict[str, Any]) -> dict[str, Any] | None:
 def _default_llm_settings() -> dict[str, Any]:
     return {
         "enabled": False,
-        "provider": "mock",
-        "model": "mock-model",
+        "provider": "volcengine",
+        "model": default_model_for_provider("volcengine"),
         "api_key_env": "",
-        "base_url": "",
-        "local_only": True,
+        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "local_only": False,
         "allow_cloud": False,
     }
 
@@ -282,6 +283,14 @@ def _public_llm_settings(settings: dict[str, Any]) -> dict[str, Any]:
     public = _normalize_llm_settings(settings, include_secret=False)
     public["api_key_configured"] = bool(settings.get("api_key"))
     return public
+
+
+def _require_report_llm_settings(settings: dict[str, Any]) -> None:
+    if not settings.get("enabled"):
+        raise ValueError(
+            "生成报告需要先配置并启用 LLM Provider。"
+            "请在 Dashboard 的 LLM 页面保存 Provider、Model 和 API Key。"
+        )
 
 
 def _run_llm_session_retro(
@@ -1553,6 +1562,16 @@ def _update_report_artifact_candidate(
 ) -> dict[str, Any] | None:
     reviewed_at = now_utc()
     updated: dict[str, Any] | None = None
+    focus = report.get("report_focus") if isinstance(report.get("report_focus"), dict) else {}
+    focus_candidates = _dict_items(focus.get("recommended_artifacts"))
+    for candidate in focus_candidates:
+        if str(candidate.get("id") or "") != artifact_id:
+            continue
+        candidate["status"] = status
+        candidate["reviewed_at"] = reviewed_at
+        updated = candidate
+        break
+
     top_level = _dict_items(report.get("artifact_candidates"))
     for candidate in top_level:
         if str(candidate.get("id") or "") != artifact_id:
@@ -1579,12 +1598,17 @@ def _update_report_artifact_candidate(
 
     if updated is None:
         return None
+    if focus_candidates:
+        focus["recommended_artifacts"] = focus_candidates
+        report["report_focus"] = focus
     if top_level:
         report["artifact_candidates"] = top_level
-        report["artifact_review_queue"] = _report_artifact_review_queue(top_level)
     if efficiency_candidates:
         efficiency["artifact_candidates"] = efficiency_candidates
         report["efficiency_analysis"] = efficiency
+    report["artifact_review_queue"] = _report_artifact_review_queue(
+        _report_artifact_candidates(report)
+    )
     return updated
 
 

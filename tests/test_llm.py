@@ -122,7 +122,7 @@ class LLMIntegrationTests(unittest.TestCase):
         self.assertNotIn("SECRET_TOOL_OUTPUT", serialized)
         self.assertNotIn("command=pytest", serialized)
 
-    def test_retro_llm_mock_writes_report_and_job_output(self) -> None:
+    def test_report_llm_mock_writes_report_and_job_output(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             transcript = root / "transcript.jsonl"
@@ -137,7 +137,7 @@ class LLMIntegrationTests(unittest.TestCase):
                         [
                             "--db",
                             str(db),
-                            "retro",
+                            "report",
                             "latest",
                             "--reports-dir",
                             str(reports),
@@ -149,7 +149,7 @@ class LLMIntegrationTests(unittest.TestCase):
                     0,
                 )
 
-            report_path = Path(output.getvalue().strip().splitlines()[-1])
+            report_path = Path(output.getvalue().strip().splitlines()[-2])
             report = report_path.read_text(encoding="utf-8")
             self.assertIn("## 9. 重点诊断", report)
             self.assertIn("验收条件没有在开工前固定", report)
@@ -177,7 +177,7 @@ class LLMIntegrationTests(unittest.TestCase):
 
             self.assertEqual(main(["--db", str(db), "scan", str(transcript)]), 0)
             with contextlib.redirect_stdout(io.StringIO()) as output:
-                status = main(["--db", str(db), "retro", "latest", "--llm"])
+                status = main(["--db", str(db), "report", "latest", "--llm"])
 
             self.assertEqual(status, 1)
             self.assertIn("local-only mode", output.getvalue())

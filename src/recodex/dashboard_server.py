@@ -344,9 +344,7 @@ def _report_job_llm_settings(payload: dict[str, Any]) -> dict[str, Any]:
     raw = payload.get("llm")
     if isinstance(raw, dict):
         return raw
-    if payload.get("include_llm") is True:
-        return {}
-    return {"enabled": False}
+    return {}
 
 
 def _project_path_from_payload(payload: dict[str, Any]) -> str | None:

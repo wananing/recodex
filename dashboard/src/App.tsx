@@ -2,7 +2,6 @@ import {
   Activity,
   ArrowRight,
   AtSign,
-  CalendarDays,
   CheckCircle2,
   Code2,
   Database,
@@ -14,7 +13,6 @@ import {
   GitGraph,
   History,
   Languages,
-  ListChecks,
   Paperclip,
   Pause,
   Play,
@@ -22,7 +20,6 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
-  Target,
   TerminalSquare,
   XCircle,
   Zap,
@@ -759,11 +756,10 @@ function OverviewPanel({
 }) {
   const { t } = useI18n();
   const [projectFilter, setProjectFilter] = useState("all");
-  const [since, setSince] = useState("30d");
   const [analysisMode, setAnalysisMode] = useState<"workflow" | "improvements" | "patterns">("workflow");
   const [analysisNote, setAnalysisNote] = useState("");
+  const since = "30d";
   const [reportOutputDir, setReportOutputDir] = useState("");
-  const [includeLlmReport, setIncludeLlmReport] = useState(true);
   const [homeView, setHomeView] = useState<HomeView>("chain");
   const [graph, setGraph] = useState<HomeSessionGraph | null>(null);
   const [graphBusy, setGraphBusy] = useState(false);
@@ -972,7 +968,7 @@ function OverviewPanel({
       target: selectedSession.session_id,
       project: projectFilter === "all" ? undefined : projectFilter,
       reports_dir: reportOutputDir.trim() || undefined,
-      include_llm: includeLlmReport,
+      note: analysisNote.trim() || undefined,
     };
     const result = await postJson<{ ok: boolean; job: HomeAnalysisJob }>("/analysis/jobs", payload);
     if (!result.ok) {
@@ -1071,7 +1067,7 @@ function OverviewPanel({
   }> = [
     {
       key: "session",
-      title: "Select Session",
+      title: "选择会话",
       desc: selectedSession?.title || t("overview.simple.step.session.desc"),
       view: "chain",
       icon: CheckCircle2,
@@ -1081,43 +1077,23 @@ function OverviewPanel({
     },
     {
       key: "analyze",
-      title: "Analyze",
+      title: "模型分析",
       desc: activeJob?.message || t("overview.simple.step.report.desc"),
       view: "analysis",
       icon: Activity,
       progress: activeJob?.status === "succeeded" ? 100 : jobRunning ? 58 : selectedSession ? 35 : 0,
       status: activeJob?.status === "succeeded" ? "complete" : selectedSession ? "active" : "pending",
-      meta: activeJob ? activeJob.phase : analysisMode,
+      meta: activeJob ? activeJob.phase : "LLM required",
     },
     {
       key: "report",
-      title: "Report",
+      title: "提效报告",
       desc: homeText(summary.headline, selectedReport?.title || t("common.noReports")),
       view: "analysis",
       icon: FileText,
       progress: hasReport ? 100 : activeJob?.status === "succeeded" ? 72 : 0,
       status: hasReport ? "complete" : activeJob ? "active" : "pending",
       meta: selectedReport?.created_at ?? "waiting",
-    },
-    {
-      key: "evidence",
-      title: "Evidence Cards",
-      desc: `${formatCount(evidenceItems + reportEvidenceCount)} evidence / ${formatCount(clusters.length)} clusters`,
-      view: "audit",
-      icon: Sparkles,
-      progress: evidenceProgress,
-      status: clusters.length > 0 || reportEvidenceCount > 0 ? "complete" : selectedSession ? "active" : "pending",
-      meta: `${formatCount(auditedObjects.length)} audited`,
-    },
-    {
-      key: "assets",
-      title: "Generate Assets",
-      desc: t("overview.simple.step.artifact.desc"),
-      view: "artifact",
-      icon: ShieldCheck,
-      progress: acceptedImprovements.length > 0 || artifactPreviewLocal ? 100 : proposedImprovements.length > 0 || readyClusters > 0 ? 48 : 0,
-      status: acceptedImprovements.length > 0 || artifactPreviewLocal ? "complete" : proposedImprovements.length > 0 || readyClusters > 0 ? "active" : "pending",
-      meta: acceptedImprovements.length > 0 ? `${formatCount(acceptedImprovements.length)} accepted` : `${formatCount(proposedImprovements.length)} candidates`,
     },
   ];
   const metricRows = [
@@ -1138,15 +1114,15 @@ function OverviewPanel({
     {
       label: "Report Findings",
       value: formatCount(v2Findings.length),
-      trend: `${formatCount(reportEvidenceCount)} v2 evidence / ${formatCount(v2Artifacts.length)} artifacts`,
+      trend: `${formatCount(reportEvidenceCount)} 条证据 / ${formatCount(v2Artifacts.length)} 条沉淀建议`,
       icon: ShieldCheck,
       tone: "blue",
     },
     {
-      label: "Artifacts Ready",
-      value: formatCount(acceptedImprovements.length + readyClusters),
-      trend: `${formatCount(proposedImprovements.length)} candidates`,
-      icon: Download,
+      label: "Reports",
+      value: formatCount(reports.length),
+      trend: selectedReport?.created_at ?? "waiting",
+      icon: FileText,
       tone: "",
     },
   ];
@@ -1188,11 +1164,11 @@ function OverviewPanel({
               onChange={(event) => setAnalysisNote(event.target.value)}
               onKeyDown={(event) => {
                 if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                  void startHomeAnalysis();
+                  void startHomeReport();
                 }
               }}
-              placeholder="What should we analyze next?"
-              aria-label="What should we analyze next?"
+              placeholder="这次报告重点关注什么？"
+              aria-label="这次报告重点关注什么？"
             />
             <div className="codex-prompt-tools">
               <button type="button" className="codex-tool-icon" aria-label="Refresh chain" onClick={() => selectedSession && void loadSessionGraph(selectedSession.session_id)}>
@@ -1233,47 +1209,22 @@ function OverviewPanel({
               ariaLabel="Session"
               placeholder={sessions.length === 0 ? "未导入" : "选择会话"}
             />
-            <DashboardSelectCard
-              value={since}
-              options={[
-                { value: "7d", label: "Last 7 days" },
-                { value: "30d", label: "Last 30 days" },
-                { value: "90d", label: "Last 90 days" },
-                { value: "365d", label: "Last year" },
-              ]}
-              onChange={setSince}
-              label="Time Range"
-              icon={<CalendarDays className="h-4 w-4" />}
-              ariaLabel="Time Range"
-            />
-            <DashboardSelectCard
-              value={analysisMode}
-              options={[
-                { value: "workflow", label: "Workflow Audit" },
-                { value: "improvements", label: "Improvements" },
-                { value: "patterns", label: "Patterns" },
-              ]}
-              onChange={(value) => setAnalysisMode(value as typeof analysisMode)}
-              label="Analysis Mode"
-              icon={<Target className="h-4 w-4" />}
-              ariaLabel="Analysis Mode"
-            />
           </div>
 
           <section className="codex-home-report-runner" aria-label="报告生成">
             <div>
               <FileText className="h-4 w-4" />
-              <span>v2 报告生成</span>
-              <strong>{includeLlmReport ? "LLM + rules + deep audit" : "local rules"}</strong>
+              <span>提效报告生成</span>
+              <strong>LLM 分析 + 证据检查</strong>
             </div>
             <label>
               <span>输出目录</span>
               <input value={reportOutputDir} onChange={(event) => setReportOutputDir(event.target.value)} placeholder="./reports" />
             </label>
-            <label className="codex-home-toggle">
-              <input type="checkbox" checked={includeLlmReport} onChange={(event) => setIncludeLlmReport(event.target.checked)} />
-              <span>LLM 增强</span>
-            </label>
+            <button type="button" className="codex-action-button" onClick={() => onNavigate("llm")}>
+              <Zap className="h-4 w-4" />
+              配置 LLM
+            </button>
           </section>
 
           <div className="codex-action-row">
@@ -1284,28 +1235,15 @@ function OverviewPanel({
               onClick={() => void startHomeReport()}
             >
               {jobRunning && activeJob?.type === "report" ? <RefreshCw className="h-4 w-4 spin" /> : <FileText className="h-4 w-4" />}
-              生成 v2 报告
-            </button>
-            <button
-              type="button"
-              className="codex-action-button"
-              disabled={jobRunning || sessions.length === 0}
-              onClick={() => void startHomeAnalysis()}
-            >
-              {jobRunning && activeJob?.type === "analysis" ? <RefreshCw className="h-4 w-4 spin" /> : <Play className="h-4 w-4" />}
-              运行辅助分析
-            </button>
-            <button type="button" className="codex-action-button" onClick={() => setHomeView("audit")}>
-              <ListChecks className="h-4 w-4" />
-              Review Queue
-            </button>
-            <button type="button" className="codex-action-button" onClick={() => void previewHomeArtifact()}>
-              <FileText className="h-4 w-4" />
-              Preview Artifact
+              生成提效报告
             </button>
             <button type="button" className="codex-action-button" onClick={() => void loadHomeReports()}>
               <RefreshCw className="h-4 w-4" />
-              Refresh Reports
+              刷新报告
+            </button>
+            <button type="button" className="codex-action-button" onClick={() => onNavigate("reports")}>
+              <FileText className="h-4 w-4" />
+              报告列表
             </button>
           </div>
 
@@ -1411,7 +1349,7 @@ function OverviewPanel({
               }
               return undefined;
             }}
-            onRunAnalysis={startHomeAnalysis}
+            onRunAnalysis={startHomeReport}
             onSelectCluster={(clusterId) => setLocalClusterId(clusterId)}
             onOpenCluster={onOpenCluster}
             onRefreshImprovements={() => loadHomeImprovements(true)}
@@ -1424,7 +1362,7 @@ function OverviewPanel({
 
         <aside className="codex-evidence-panel" aria-label="Recent evidence">
           <div className="codex-evidence-header">
-            <h2>Recent Evidence</h2>
+            <h2>报告证据</h2>
             <button type="button" onClick={() => onNavigate("evidence")}>View all</button>
           </div>
           <div className="codex-evidence-list">
@@ -1457,9 +1395,9 @@ function OverviewPanel({
         </aside>
       </div>
 
-      <section className="codex-console-panel" aria-label="Analysis console">
+      <section className="codex-console-panel" aria-label="Report console">
         <div className="codex-console-header">
-          <div><TerminalSquare className="h-4 w-4" /><span>Analysis Console</span><span className="codex-console-live"><span className="status-dot ok" />Live</span></div>
+          <div><TerminalSquare className="h-4 w-4" /><span>Report Console</span><span className="codex-console-live"><span className="status-dot ok" />Live</span></div>
           <div>
             <button type="button">Clear</button>
             <button type="button"><Filter className="h-4 w-4" />Filter</button>
@@ -1469,11 +1407,11 @@ function OverviewPanel({
         <div className="codex-terminal" role="log" aria-live="polite">
           <div><span>10:42:11</span><b>INFO</b><code>Session loaded: {selectedSession?.session_id ?? "waiting for session"}</code></div>
           <div><span>10:42:12</span><b>INFO</b><code>Project scope: {selectedProject}</code></div>
-          <div><span>10:42:13</span><b>INFO</b><code>Analysis mode: Workflow Audit</code></div>
+          <div><span>10:42:13</span><b>INFO</b><code>Report mode: LLM efficiency report</code></div>
           <div><span>10:42:18</span><b className="ok">OK</b><code>Canonical events indexed from local history</code></div>
           <div><span>10:42:27</span><b>INFO</b><code>Building evidence windows and micro claims</code></div>
           <div><span>10:42:35</span><b className="ok">OK</b><code>Clusters available: {formatCount(clusters.length)} / Evidence: {formatCount(evidenceItems)}</code></div>
-          <div><span>10:42:42</span><b>INFO</b><code>Audit queue: {formatCount(highPriorityClusters)} high priority patterns</code></div>
+          <div><span>10:42:42</span><b>INFO</b><code>Report findings: {formatCount(v2Findings.length)} / evidence: {formatCount(reportEvidenceCount)}</code></div>
         </div>
       </section>
     </div>
