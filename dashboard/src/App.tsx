@@ -1077,17 +1077,17 @@ function OverviewPanel({
     },
     {
       key: "analyze",
-      title: "模型分析",
+      title: "效率剖析",
       desc: activeJob?.message || t("overview.simple.step.report.desc"),
       view: "analysis",
       icon: Activity,
       progress: activeJob?.status === "succeeded" ? 100 : jobRunning ? 58 : selectedSession ? 35 : 0,
       status: activeJob?.status === "succeeded" ? "complete" : selectedSession ? "active" : "pending",
-      meta: activeJob ? activeJob.phase : "LLM required",
+      meta: activeJob ? activeJob.phase : "需要 LLM",
     },
     {
       key: "report",
-      title: "提效报告",
+      title: "行动报告",
       desc: homeText(summary.headline, selectedReport?.title || t("common.noReports")),
       view: "analysis",
       icon: FileText,
@@ -1167,8 +1167,8 @@ function OverviewPanel({
                   void startHomeReport();
                 }
               }}
-              placeholder="这次报告重点关注什么？"
-              aria-label="这次报告重点关注什么？"
+              placeholder="这次想剖析什么成本？"
+              aria-label="这次想剖析什么成本？"
             />
             <div className="codex-prompt-tools">
               <button type="button" className="codex-tool-icon" aria-label="Refresh chain" onClick={() => selectedSession && void loadSessionGraph(selectedSession.session_id)}>
@@ -1214,8 +1214,8 @@ function OverviewPanel({
           <section className="codex-home-report-runner" aria-label="报告生成">
             <div>
               <FileText className="h-4 w-4" />
-              <span>提效报告生成</span>
-              <strong>LLM 分析 + 证据检查</strong>
+              <span>效率剖析报告生成</span>
+              <strong>可避免成本 + 下一次行动</strong>
             </div>
             <label>
               <span>输出目录</span>
@@ -1235,7 +1235,7 @@ function OverviewPanel({
               onClick={() => void startHomeReport()}
             >
               {jobRunning && activeJob?.type === "report" ? <RefreshCw className="h-4 w-4 spin" /> : <FileText className="h-4 w-4" />}
-              生成提效报告
+              生成效率剖析报告
             </button>
             <button type="button" className="codex-action-button" onClick={() => void loadHomeReports()}>
               <RefreshCw className="h-4 w-4" />
@@ -1407,7 +1407,7 @@ function OverviewPanel({
         <div className="codex-terminal" role="log" aria-live="polite">
           <div><span>10:42:11</span><b>INFO</b><code>Session loaded: {selectedSession?.session_id ?? "waiting for session"}</code></div>
           <div><span>10:42:12</span><b>INFO</b><code>Project scope: {selectedProject}</code></div>
-          <div><span>10:42:13</span><b>INFO</b><code>Report mode: LLM efficiency report</code></div>
+          <div><span>10:42:13</span><b>INFO</b><code>Report mode: AI coding workflow profiler</code></div>
           <div><span>10:42:18</span><b className="ok">OK</b><code>Canonical events indexed from local history</code></div>
           <div><span>10:42:27</span><b>INFO</b><code>Building evidence windows and micro claims</code></div>
           <div><span>10:42:35</span><b className="ok">OK</b><code>Clusters available: {formatCount(clusters.length)} / Evidence: {formatCount(evidenceItems)}</code></div>

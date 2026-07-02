@@ -289,7 +289,7 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--limit", type=int, default=20)
     search.set_defaults(handler=cmd_search)
 
-    retro = subparsers.add_parser("retro", help="Retired: use the single LLM-backed session report.")
+    retro = subparsers.add_parser("retro", help="Retired: use the single LLM-backed profiling report.")
     retro.add_argument("target", nargs="?", default="latest", help="Session id, latest, or omitted.")
     retro.add_argument("--since", help="Generate retrospectives for sessions in a time window.")
     retro.add_argument("--reports-dir", help="Directory for Markdown reports.")
@@ -306,7 +306,7 @@ def build_parser() -> argparse.ArgumentParser:
     retro.add_argument("--open", action="store_true", help="Open the generated HTML report in a browser.")
     retro.set_defaults(handler=cmd_legacy_report_cli)
 
-    report = subparsers.add_parser("report", help="Generate the maintained LLM-backed session report.")
+    report = subparsers.add_parser("report", help="Generate the maintained LLM-backed profiling report.")
     report.add_argument("target", nargs="?", default="latest", help="Session id, latest, or omitted.")
     report.add_argument("--reports-dir", help="Directory for generated reports.")
     report.add_argument("--local-only", action="store_true", help="Block cloud LLM calls for this command.")
@@ -621,7 +621,7 @@ def cmd_guide(args: argparse.Namespace) -> int:
     print("")
     print("Maintained CLI support:")
     print("  recodex scan <path>              Import local AI coding sessions")
-    print("  recodex report latest --llm ...  Generate the same LLM-backed session report headlessly")
+    print("  recodex report latest --llm ...  Generate the same LLM-backed profiling report headlessly")
     print("  recodex sessions list            Inspect imported sessions")
     print("  recodex privacy scan latest      Check redaction targets")
     return 0
@@ -1702,7 +1702,7 @@ def cmd_before(args: argparse.Namespace) -> int:
         for row in rows:
             print(f"- [{row['status']}] {row['title']}: {_excerpt(row['recommendation'])}")
     else:
-        print("- No candidates yet. Generate a Dashboard session efficiency report first.")
+        print("- No candidates yet. Generate a Dashboard efficiency profiling report first.")
     print("")
     print("## Suggested Checklist")
     print("- Identify files and commands before editing.")

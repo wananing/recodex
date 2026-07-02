@@ -3,42 +3,45 @@
 [English](README.en.md) | 中文
 
 <p align="center">
-  <img src="docs/assets/recodex-promo-hero.jpg" alt="recodex 把本地 AI 编程会话转成提效报告和可复用项目知识" width="100%">
+  <img src="docs/assets/recodex-promo-hero.jpg" alt="recodex 剖析 AI 编程会话中的可避免成本并生成下一步行动" width="100%">
 </p>
 
 <p align="center">
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-10b981">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-2563eb">
-  <img alt="Dashboard first" src="https://img.shields.io/badge/workflow-Dashboard--first-f59e0b">
-  <img alt="LLM required" src="https://img.shields.io/badge/report-LLM--backed-ef4444">
+  <img alt="Workflow profiler" src="https://img.shields.io/badge/workflow-profiler-f59e0b">
+  <img alt="Actionable reports" src="https://img.shields.io/badge/report-actionable-ef4444">
 </p>
 
-> 把真实 AI 编程会话复盘成下一次更高效协作的提效报告。
+> 像性能剖析代码一样，剖析你的 AI 编程过程。
 
-`recodex` 是一个本地优先的 AI 编程会话复盘工具。它读取本机 Codex、Claude Code 或 Cursor 会话记录，在用户配置的大模型上生成一份协作提效报告，帮助你判断下一次应该如何更清楚地给上下文、拆任务、做验证和沉淀项目经验。
+`recodex` 是一个 AI 编程工作流剖析器。它读取 Codex、Claude Code 或 Cursor
+的真实会话记录，调用你配置的大模型，找出会话中可避免的效率成本，并生成下一次
+可以直接执行的协作改进报告。
 
 报告分析的主体是使用 AI 编程工具的开发者，而不是评价 AI 是否“聪明”。它关注：
 
-- 哪些目标、约束或验收标准应该更早给出
-- 哪些来回沟通、失败探索或纠偏可以避免
+- 哪些上下文、目标、约束或验收标准应该更早给出
+- 哪些来回沟通、失败探索、任务漂移或用户纠偏可以避免
+- 哪些验证债务会让你在会话结束后继续补查
 - 哪些项目知识适合沉淀到 `AGENTS.md`、检查清单、脚本或 skill
-- 下次开启类似任务时应该直接怎么做
 
 ## 为什么值得用
 
-- **复盘真实会话**：从本地 Codex、Claude Code、Cursor 聊天记录里找协作摩擦。
-- **面向下一次提效**：报告不评价模型，而是告诉你下次怎么给上下文、拆任务、验收结果。
-- **本地优先**：原始会话保留在本机，只把脱敏后的必要分析包交给你配置的 LLM。
-- **能沉淀资产**：把反复出现的问题转成项目文档、检查清单、脚本或 skill 候选。
+- **看见隐形浪费**：定位上下文给晚、测试命令反复找、权限失败循环、验收缺失等可避免成本。
+- **改进下一次协作**：报告不评价模型，而是告诉你下次怎么给上下文、拆任务、设验收标准。
+- **沉淀项目资产**：把反复出现的问题转成 `AGENTS.md`、检查清单、脚本或 skill 候选。
+- **覆盖真实工具**：支持 Codex、Claude Code、Cursor 的会话记录。
+- **隐私可控**：原始会话保留在本机，只把脱敏后的必要分析包交给你配置的 LLM。
 
 ## 产品预览
 
 <p align="center">
-  <img src="docs/assets/recodex-promo-report.jpg" alt="recodex 报告页面展示提效问题、聊天依据和验收证据" width="100%">
+  <img src="docs/assets/recodex-promo-report.jpg" alt="recodex 报告页面展示可避免成本、聊天依据和下一步行动" width="100%">
 </p>
 
 <p align="center">
-  <img src="docs/assets/recodex-promo-workflow.jpg" alt="recodex 从本地会话到脱敏分析再到提效报告的工作流" width="100%">
+  <img src="docs/assets/recodex-promo-workflow.jpg" alt="recodex 从真实会话到脱敏分析再到效率剖析报告的工作流" width="100%">
 </p>
 
 ## 快速开始
@@ -57,21 +60,21 @@ make dashboard-serve
 1. 在首页或导入页导入本地会话。
 2. 在 `LLM` 页面配置 Provider、Model、Base URL 和 API Key。
 3. 回到首页选择项目和会话。
-4. 点击“生成提效报告”。
+4. 点击“生成效率剖析报告”。
 5. 在“报告”菜单查看历史报告，点击进入新版报告页。
 
-## 唯一报告
+## 核心报告
 
-当前产品只保留一种用户可见报告：**会话提效报告**。
+当前产品只保留一种核心报告：**AI 编程效率剖析报告**。
 
 报告生成需要 LLM。没有启用 LLM Provider 时，Dashboard 会直接提示先配置模型，不生成报告。
 
 报告包含：
 
-- 报告重点：本次最值得改进的协作问题
-- 下一次怎么做：按优先级给出的具体动作
+- 可避免成本：本次最值得减少的协作浪费
+- 下一次行动：按优先级给出的具体做法
 - 聊天依据：只基于聊天文字提取的观察，不把工具执行结果当成聊天结论
-- 提效问题证据：成本、根因和证据引用
+- 效率问题证据：成本、根因和证据引用
 - 沉淀建议：适合写入文档、清单、脚本或 skill 的内容
 - 验收证据：区分已验证和只是声称完成
 
@@ -86,7 +89,7 @@ PYTHONPATH=src python3 -m recodex scan ~/.codex/sessions
 PYTHONPATH=src python3 -m recodex doctor
 ```
 
-需要自动化时，可以使用同一份 LLM 提效报告的 headless 入口：
+需要自动化时，可以使用同一份 LLM 效率剖析报告的 headless 入口：
 
 ```bash
 PYTHONPATH=src python3 -m recodex report latest --llm --llm-provider volcengine --allow-cloud

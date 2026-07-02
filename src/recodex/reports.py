@@ -235,7 +235,7 @@ def render_patterns(
             "",
             "## Suggested Review Loop",
             "",
-            "- Pick the highest-friction session and generate the Dashboard session efficiency report.",
+            "- Pick the highest-friction session and generate the Dashboard efficiency profiling report.",
             "- Convert one repeated failure into a checklist item.",
             "- Convert one repeated command sequence into a script or Make target.",
             "- Export AGENTS.md suggestions after accepting the strongest improvement candidates.",
@@ -254,7 +254,7 @@ def render_improvements(rows: list[Row]) -> str:
         "",
     ]
     if not rows:
-        lines.append("No candidates yet. Generate a Dashboard session efficiency report first.")
+        lines.append("No candidates yet. Generate a Dashboard efficiency profiling report first.")
         lines.append("")
         return "\n".join(lines)
 
@@ -285,7 +285,7 @@ def render_agents_patch(rows: list[Row]) -> str:
     for row in rows[:8]:
         bullets.append(f"+- {redact_text(row['recommendation'])}")
     if not bullets:
-        bullets.append("+- Generate a Dashboard session efficiency report and review its artifact candidates.")
+        bullets.append("+- Generate a Dashboard efficiency profiling report and review its artifact candidates.")
 
     return "\n".join(
         [
@@ -301,7 +301,7 @@ def render_agents_patch(rows: list[Row]) -> str:
             "+",
             "+使用本地复盘减少重复 AI 开发失败。",
             "+",
-            "+- 完成较大 AI 辅助开发后，运行 `recodex scan` 并在 Dashboard 生成提效报告。",
+            "+- 完成较大 AI 辅助开发后，运行 `recodex scan` 并在 Dashboard 生成效率剖析报告。",
             "+- 需要自动化时，使用 `recodex report latest --llm --llm-provider <provider> --allow-cloud`。",
             "+- 将重复失败沉淀为 checklist、skill 或脚本。",
             *bullets,
@@ -328,7 +328,7 @@ def render_checklist_export(rows: list[Row]) -> str:
         "",
     ]
     if not rows:
-        lines.extend(["No improvement candidates yet. Generate a Dashboard session efficiency report.", ""])
+        lines.extend(["No improvement candidates yet. Generate a Dashboard efficiency profiling report.", ""])
         return "\n".join(lines)
 
     for row in rows:
@@ -361,7 +361,7 @@ def render_scripts_export(rows: list[Row]) -> str:
         lines.extend(
             [
                 "# No candidate-specific script suggestions yet.",
-                "# Generate a Dashboard session efficiency report after scanning transcripts.",
+                "# Generate a Dashboard efficiency profiling report after scanning transcripts.",
                 "",
             ]
         )
@@ -568,7 +568,7 @@ def _retro_candidates(session: SessionRecord, signals: dict[str, int]) -> list[s
 def _skill_markdown(rows: list[Row]) -> str:
     recommendations = "\n".join(f"- {redact_text(row['recommendation'])}" for row in rows[:8])
     if not recommendations:
-        recommendations = "- Generate a session efficiency report and capture one concrete workflow improvement."
+        recommendations = "- Generate an efficiency profiling report and capture one concrete workflow improvement."
     return "\n".join(
         [
             "---",
@@ -583,7 +583,7 @@ def _skill_markdown(rows: list[Row]) -> str:
             "## Steps",
             "",
             "- Run `recodex scan` against local transcripts.",
-            "- Generate the session efficiency report in the Dashboard.",
+            "- Generate the efficiency profiling report in the Dashboard.",
             "- For automation, run `recodex report latest --llm --llm-provider <provider> --allow-cloud`.",
             "- Export accepted report guidance into AGENTS.md, skills, checklists, or scripts.",
             "",
@@ -598,7 +598,7 @@ def _skill_markdown(rows: list[Row]) -> str:
 def _checklist_markdown(rows: list[Row]) -> str:
     items = [
         "- [ ] Scan recent Codex transcripts.",
-        "- [ ] Read the latest session efficiency report.",
+        "- [ ] Read the latest efficiency profiling report.",
         "- [ ] Identify one repeated failure mode.",
         "- [ ] Add or update one workflow artifact.",
         "- [ ] Verify the artifact is actionable in a new session.",

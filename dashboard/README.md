@@ -1,18 +1,19 @@
 # recodex dashboard
 
-Vite + React dashboard copied from ContextSeek and adapted for recodex v0.2.0.
+Vite + React dashboard for the recodex AI coding workflow profiler.
 
-It is a frontend shell for the recodex import, watch, session, and skill export
-workflows. The current recodex backend is still CLI-first, so the dashboard uses
-the planned local API contract:
+It is the primary UI for importing real AI coding sessions, configuring an LLM provider,
+generating the efficiency profiling report, and reviewing reusable project-memory suggestions.
+Serve it through the recodex backend for the maintained API contract:
 
 - `POST /import/run`
 - `POST /watch/add`
 - `POST /watch/run`
-- `POST /skills/export`
+- `POST /reports/generate`
 - `GET /overview`
 - `GET /sessions`
-- `GET /settings`
+- `GET /reports`
+- `GET /llm/providers`
 
 ## Development
 

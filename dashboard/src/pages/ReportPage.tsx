@@ -326,7 +326,7 @@ export function ReportPage({
       note: text(effectObservation.message, "等待后续会话"),
     },
   ];
-  const reportTitle = text(summary.title ?? summary.report_title, "recodex 会话提效报告");
+  const reportTitle = text(summary.title ?? summary.report_title, "recodex AI 编程效率剖析报告");
   const reportProject = text(meta.project ?? selectedReport?.project_path ?? (selectedProject !== "all" ? selectedProject : ""), "未选择项目");
   const reportSessionId = text(meta.session_id ?? selectedReport?.session_id, "latest");
   const reportGeneratedAt = text(meta.started_at ?? meta.generated_at ?? selectedReport?.created_at, "未生成");

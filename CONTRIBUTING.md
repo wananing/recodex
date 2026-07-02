@@ -1,13 +1,13 @@
 # Contributing to recodex
 
 Thanks for helping improve recodex. This project is currently focused on one product path:
-import local AI coding sessions, configure an LLM provider, and generate a session efficiency
-report from the Dashboard home page.
+profile real AI coding sessions, configure a user-owned LLM provider, and generate an actionable
+workflow report from the Dashboard home page.
 
 ## What We Maintain
 
-- The LLM-backed session efficiency report.
-- Local-first import, storage, privacy, and dashboard workflows.
+- The LLM-backed AI coding efficiency profiling report.
+- Session import, storage, redaction, privacy, and dashboard workflows.
 - Provider support for Codex, Claude Code, Cursor, and OpenAI-compatible LLMs.
 - Report evidence, artifact suggestions, and verification signals.
 
@@ -15,7 +15,7 @@ Legacy report modes, local rules-only report generation, and broad analytics das
 current product priorities.
 
 Do not add new public report commands. The only maintained report surface is the Dashboard report
-flow, plus `recodex report` as a headless wrapper for the same LLM-backed session report.
+flow, plus `recodex report` as a headless wrapper for the same LLM-backed profiling report.
 
 ## Development Setup
 

@@ -786,7 +786,7 @@ def render_report_html(report: dict[str, Any]) -> str:
   <main class="page">
     <header class="topbar">
       <div>
-        <p class="eyebrow">recodex 会话提效报告</p>
+        <p class="eyebrow">recodex AI 编程效率剖析报告</p>
         <h1>{_h(str(meta.get("project") or "Unknown Project"))}</h1>
       </div>
       <div class="meta" aria-label="报告元数据">

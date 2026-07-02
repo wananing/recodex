@@ -2,7 +2,7 @@
 
 ## Lead Objective
 
-Build the MVP as a paced local-first loop:
+Build the MVP as a paced workflow-analysis loop:
 
 ```text
 scan -> sessions/search -> retro -> patterns -> propose -> review -> export
@@ -117,7 +117,7 @@ Acceptance:
 
 ### P5: Privacy and Config
 
-Goal: keep the system local-first with safe defaults.
+Goal: keep transcript handling private and explicit by default.
 
 Commands:
 
@@ -170,7 +170,7 @@ Ownership:
 Goal:
 
 - Add project/global TOML config loading with dependency-free fallback behavior.
-- Add default local-first settings.
+- Add safe local storage defaults.
 - Add reusable redaction helpers.
 
 Validation:
@@ -247,4 +247,3 @@ make test
 PYTHONPATH=src python3 -m recodex scan --dry-run
 PYTHONPATH=src python3 -m recodex --help
 ```
-

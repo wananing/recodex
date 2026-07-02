@@ -26,6 +26,5 @@ reports in public issues.
 
 ## Project Boundaries
 
-recodex is local-first and does not provide a hosted backend. LLM report generation sends a
-redacted analysis package to the provider configured by the user.
-
+recodex is a self-hosted/local application and does not provide a hosted backend. LLM report
+generation sends a redacted analysis package to the provider configured by the user.

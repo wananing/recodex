@@ -1,7 +1,7 @@
 [project]
 name = "recodex"
 version = "0.3.0"
-description = "Local CLI for reviewing AI-assisted development transcripts."
+description = "AI coding workflow profiler that turns real sessions into next-action reports."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"

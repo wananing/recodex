@@ -13,8 +13,7 @@ What workflow or report problem should this solve?
 
 ## Why this belongs in recodex
 
-recodex currently focuses on one LLM-backed session efficiency report. Explain how this improves
-that path.
+recodex currently focuses on one LLM-backed AI coding efficiency profiling report. Explain how
+this improves that path.
 
 ## Alternatives considered
-

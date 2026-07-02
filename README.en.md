@@ -3,37 +3,42 @@
 English | [中文](README.md)
 
 <p align="center">
-  <img src="docs/assets/recodex-promo-hero.jpg" alt="recodex turns local AI coding sessions into efficiency reports and reusable project knowledge" width="100%">
+  <img src="docs/assets/recodex-promo-hero.jpg" alt="recodex profiles avoidable cost in AI coding sessions and turns it into next actions" width="100%">
 </p>
 
 <p align="center">
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-10b981">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-2563eb">
-  <img alt="Dashboard first" src="https://img.shields.io/badge/workflow-Dashboard--first-f59e0b">
-  <img alt="LLM required" src="https://img.shields.io/badge/report-LLM--backed-ef4444">
+  <img alt="Workflow profiler" src="https://img.shields.io/badge/workflow-profiler-f59e0b">
+  <img alt="Actionable reports" src="https://img.shields.io/badge/report-actionable-ef4444">
 </p>
 
-> Turn real AI coding sessions into an efficiency report for better next-session collaboration.
+> Profile your AI coding workflow the way you profile code performance.
 
-`recodex` is a local-first AI coding session review tool. It reads local Codex, Claude Code, or Cursor transcripts and uses a user-configured LLM provider to generate one collaboration-efficiency report.
+`recodex` is an AI coding workflow profiler. It reads real Codex, Claude Code, or Cursor
+sessions, calls your configured LLM provider, identifies avoidable collaboration cost, and
+generates an actionable report for the next session.
 
-The report is written for the developer using AI coding tools. It does not rate whether the AI is smart. It explains how to give context earlier, split work better, verify results, and preserve reusable project knowledge.
+The report is written for the developer using AI coding tools. It does not rate whether the AI is
+smart. It explains how to give context earlier, split work better, verify results, reduce
+corrections, and preserve reusable project knowledge.
 
 ## Why Use It
 
-- **Review real sessions**: find collaboration friction in local Codex, Claude Code, and Cursor transcripts.
-- **Improve the next session**: learn when to give context, split work, and verify results earlier.
-- **Stay local-first**: raw transcripts stay on your machine; only the redacted analysis package goes to your configured LLM.
-- **Preserve reusable knowledge**: turn repeated issues into project docs, checklists, scripts, or skill candidates.
+- **Expose hidden waste**: spot late context, repeated command discovery, permission loops, task drift, and missing verification.
+- **Improve the next session**: learn how to provide context, split tasks, and define acceptance criteria earlier.
+- **Preserve reusable knowledge**: turn repeated issues into `AGENTS.md`, checklists, scripts, or skill candidates.
+- **Use real tool history**: supports Codex, Claude Code, and Cursor session records.
+- **Keep privacy controlled**: raw transcripts stay on your machine; only the redacted analysis package goes to your configured LLM.
 
 ## Product Preview
 
 <p align="center">
-  <img src="docs/assets/recodex-promo-report.jpg" alt="recodex report page with findings, chat evidence, and verification signals" width="100%">
+  <img src="docs/assets/recodex-promo-report.jpg" alt="recodex report page with avoidable cost, chat evidence, and next actions" width="100%">
 </p>
 
 <p align="center">
-  <img src="docs/assets/recodex-promo-workflow.jpg" alt="recodex workflow from local transcripts to redacted LLM analysis and efficiency report" width="100%">
+  <img src="docs/assets/recodex-promo-workflow.jpg" alt="recodex workflow from real sessions to redacted LLM analysis and profiling report" width="100%">
 </p>
 
 ## Quick Start
@@ -52,18 +57,18 @@ In the Dashboard:
 1. Import local sessions.
 2. Configure Provider, Model, Base URL, and API Key in `LLM`.
 3. Select a project and session on the home page.
-4. Click “生成提效报告”.
+4. Click the efficiency profiling report action.
 5. Open previous reports from the Reports menu.
 
-## The Only Report
+## Core Report
 
-The product keeps one user-facing report: **the session efficiency report**.
+The product keeps one core report: **the AI coding efficiency profiling report**.
 
 Report generation requires an LLM. If no LLM provider is enabled, the Dashboard asks you to configure one and does not generate a report.
 
 The report includes:
 
-- report focus
+- avoidable cost
 - next-session actions
 - chat evidence based on user/assistant text, not tool output
 - efficiency findings with cost, cause, and evidence refs
@@ -81,7 +86,7 @@ PYTHONPATH=src python3 -m recodex scan ~/.codex/sessions
 PYTHONPATH=src python3 -m recodex doctor
 ```
 
-For automation, use the headless entry for the same LLM-backed report:
+For automation, use the headless entry for the same LLM-backed profiling report:
 
 ```bash
 PYTHONPATH=src python3 -m recodex report latest --llm --llm-provider volcengine --allow-cloud

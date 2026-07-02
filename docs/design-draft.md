@@ -8,7 +8,9 @@ One-line positioning:
 
 > Turn AI coding chats, command execution, code changes, and failure processes into retrospectives, improvement suggestions, AGENTS.md, skills, checklists, scripts, and workflow rules.
 
-This should be a local-first AI development retrospective and improvement system. Version 1 focuses on Codex. Later versions can expand to Claude Code, Cursor, GitHub, and CI.
+This should be a self-hosted AI development retrospective and improvement system with explicit
+privacy boundaries. Version 1 focuses on Codex. Later versions can expand to Claude Code, Cursor,
+GitHub, and CI.
 
 The product should not be a simple Codex chat history viewer, and it should not be only a skills generator.
 
@@ -661,7 +663,7 @@ model = "gpt-5.5"
 
 ## 14. Privacy and Security
 
-The product must be local-first.
+The product must keep transcript privacy and redaction boundaries explicit.
 
 Default rules:
 
@@ -1128,5 +1130,7 @@ recodex export skills
 
 Final one-line plan:
 
-> Build a local-first Codex retrospective CLI first: read `~/.codex/sessions`, structurally parse AI development processes, generate session retrospectives and cross-session improvement candidates, export AGENTS.md, skills, checklists, scripts, and CI suggestions after human review, then later integrate Codex hooks, Claude Code, Cursor, GitHub, and team collaboration.
-
+> Build a Codex workflow profiler first: read `~/.codex/sessions`, structurally parse AI
+> development processes, generate session retrospectives and cross-session improvement candidates,
+> export AGENTS.md, skills, checklists, scripts, and CI suggestions after human review, then later
+> integrate Codex hooks, Claude Code, Cursor, GitHub, and team collaboration.
