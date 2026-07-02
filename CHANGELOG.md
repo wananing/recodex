@@ -4,6 +4,8 @@ All notable changes to this project are tracked here.
 
 ## Unreleased
 
+## 0.3.0 - 2026-07-02
+
 - Focus the product on one Dashboard-generated session efficiency report.
 - Require an enabled LLM provider for Dashboard report generation.
 - Remove user-facing `v2` wording from report generation and report pages.
@@ -12,6 +14,7 @@ All notable changes to this project are tracked here.
 - Add MIT license and CI checks for Python tests and Dashboard builds.
 - Retire legacy local and hook-driven CLI report workflows and keep `recodex report` aligned with
   the Dashboard LLM-backed session report.
+- Add colorful README promo assets and a GitHub social preview image.
 
 ## 0.2.0
 
